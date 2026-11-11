@@ -1,7 +1,18 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-dotenv.config();
+const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const repositoryRoot = path.resolve(backendRoot, '..');
+dotenv.config({
+  path: [
+    path.join(backendRoot, '.env.local'),
+    path.join(backendRoot, '.env'),
+    path.join(repositoryRoot, '.env.local'),
+    path.join(repositoryRoot, '.env'),
+  ],
+});
 
 const toInt = (value, fallback) => {
   const n = Number.parseInt(value, 10);

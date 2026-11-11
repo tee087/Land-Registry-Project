@@ -252,7 +252,25 @@ This starts PostgreSQL, runs migrations, then starts the backend and frontend. T
 on `http://localhost:5000`, the frontend on `http://localhost:8080`. Blockchain
 variables are optional and passed through to the backend container.
 
-## 13. Project structure
+## 13. Deploy the API to Render
+
+The repository-root `render.yaml` defines a Render Free Web Service for this API.
+In Render, create a Blueprint from the repository and set the prompted environment
+secrets. Use Neon’s **pooled** connection string for `DATABASE_URL`; migrations use
+`DATABASE_URL_UNPOOLED` and should be run manually from the backend directory with
+`npm run db:migrate` before deploying schema changes.
+
+The production configuration requires Redis, SMTP, MFA encryption, and private
+S3-compatible document storage settings. Render Free blocks outbound SMTP on ports
+25, 465, and 587, so configure an SMTP provider that supports port 2525. Document
+uploads must use S3-compatible storage because Render Free has an ephemeral local
+filesystem. The Free Web Service can spin down while idle; blockchain worker and
+listener processes are not started by the API service and need a paid Background
+Worker service to run continuously. If the frontend is hosted separately on Vercel,
+set its `VITE_API_BASE_URL` to `https://<render-service>.onrender.com/api` and set
+`CORS_ORIGINS` and `FRONTEND_URL` to the Vercel site origin.
+
+## 14. Project structure
 
 ```
 src/config       environment, database, CORS
@@ -269,7 +287,7 @@ test             foundation tests
 docs             API, audits and blockchain architecture
 ```
 
-## 14. Response format
+## 15. Response format
 
 Success: `{ success:true, message, data, meta?, requestId, timestamp }`
 
@@ -278,7 +296,7 @@ Error: `{ success:false, message, error:{ code, details? }, requestId, timestamp
 Every response carries an `X-Request-ID` header, which is also stored on audit
 records for correlation.
 
-## 15. Known limitations and roadmap
+## 16. Known limitations and roadmap
 
 1. Complete authentication hardening (password change/reset, email verification,
    consistent auth-rate-limit error envelope, broader auth tests).
@@ -289,7 +307,7 @@ records for correlation.
 6. Expand domain and integration test coverage, including end-to-end DB workflows.
 7. Security, privacy, legal and operational review before production use.
 
-## 16. Historical documents
+## 17. Historical documents
 
 The `docs/*_PHASE1_*.md` files and `docs/AUDIT_REPORT.md` are point-in-time audits.
 They are retained for history and may describe earlier snapshots. Current behaviour
