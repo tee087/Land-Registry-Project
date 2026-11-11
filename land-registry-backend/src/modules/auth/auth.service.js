@@ -89,12 +89,16 @@ export async function issueAuthLink(user, purpose) {
     return true;
   });
   if (!issued) return false;
-  try { await sendAuthLink({ to: user.email, token, purpose }); }
-  catch {
-    await AuthToken.update({ usedAt: new Date() }, { where: { tokenHash: hashToken(token), usedAt: null } });
-    console.error(`[auth] email delivery failed for purpose=${purpose}`);
-    return false;
-  }
+  setImmediate(() => {
+    void sendAuthLink({ to: user.email, token, purpose }).catch(async () => {
+      try {
+        await AuthToken.update({ usedAt: new Date() }, { where: { tokenHash: hashToken(token), usedAt: null } });
+      } catch {
+        console.error(`[auth] failed to invalidate undelivered token for purpose=${purpose}`);
+      }
+      console.error(`[auth] email delivery failed for purpose=${purpose}`);
+    });
+  });
   return true;
 }
 export async function verifyEmail(rawToken) {
