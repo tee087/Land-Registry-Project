@@ -59,7 +59,9 @@ const env = Object.freeze({
   email: Object.freeze({ required: parsed.REQUIRE_EMAIL_VERIFICATION ? parsed.REQUIRE_EMAIL_VERIFICATION === 'true' : isProduction, host: parsed.SMTP_HOST, port: parsed.SMTP_PORT, user: parsed.SMTP_USER, password: parsed.SMTP_PASSWORD, from: parsed.SMTP_FROM }),
   redisUrl: parsed.REDIS_URL,
   mfaEncryptionKey: parsed.MFA_ENCRYPTION_KEY,
-  trustProxy: toInt(process.env.TRUST_PROXY, 0),
+  // Render terminates TLS at its edge proxy and forwards one trusted hop.
+  // Keep local development direct unless explicitly configured.
+  trustProxy: toInt(process.env.TRUST_PROXY, nodeEnv === 'production' ? 1 : 0),
   bodyLimit: process.env.BODY_LIMIT || '1mb',
   db: Object.freeze({
     url: process.env.DATABASE_URL || '',
