@@ -1,4 +1,3 @@
-import React from 'react';
 import { ShieldCheck, Wallet } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab, account, connectWallet }) {

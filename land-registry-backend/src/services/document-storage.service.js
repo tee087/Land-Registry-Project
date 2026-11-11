@@ -5,6 +5,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import env from '../config/environment.js';
 
 const driver = process.env.DOCUMENT_STORAGE_DRIVER || (env.isProduction ? 's3' : 'local');
+export const documentStorageDriver = driver;
 const bucket = process.env.S3_BUCKET || '';
 const uploadDir = path.resolve(process.env.UPLOAD_DIR || 'uploads');
 

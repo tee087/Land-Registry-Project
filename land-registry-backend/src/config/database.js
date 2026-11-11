@@ -1,15 +1,7 @@
 import { Sequelize } from 'sequelize';
 import env from './environment.js';
 
-const connection = env.db.url || {
-  database: env.db.name,
-  username: env.db.user,
-  password: env.db.password,
-  host: env.db.host,
-  port: env.db.port,
-};
-
-export const sequelize = new Sequelize(connection, {
+const sequelizeOptions = {
   dialect: 'postgres',
   logging: env.db.logging ? (sql) => console.log(`[sql] ${sql}`) : false,
   pool: env.db.pool,
@@ -22,7 +14,15 @@ export const sequelize = new Sequelize(connection, {
     underscored: true,
     timestamps: true,
   },
-});
+};
+
+export const sequelize = env.db.url
+  ? new Sequelize(env.db.url, sequelizeOptions)
+  : new Sequelize(env.db.name, env.db.user, env.db.password, {
+      ...sequelizeOptions,
+      host: env.db.host,
+      port: env.db.port,
+    });
 
 /** Single connectivity check. Never throws; returns { ok, error? }. */
 export async function testConnection() {

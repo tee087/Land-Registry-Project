@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ShieldAlert, Lock, Unlock } from 'lucide-react';
 
 export default function ForensicDashboard() {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MapPin, Layers, CheckCircle, ShieldAlert, Compass } from 'lucide-react';
 
 export default function GISViewer() {

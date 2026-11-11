@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, CheckCircle, AlertOctagon, FileText, Lock, ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
+import { Search, CheckCircle, AlertOctagon, FileText, ShieldAlert } from 'lucide-react';
 
 export default function PropertySearch() {
   const [parcelId, setParcelId] = useState('');

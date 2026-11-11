@@ -17,7 +17,7 @@ export default function App() {
   const [authLinkNotice, setAuthLinkNotice] = useState('');
 
   const { user, loading, logout, refreshUser, sessionExpired } = useAuth();
-  const [showAuth, setShowAuth] = useState(false);
+  const [showAuth, setShowAuth] = useState(window.location.pathname === '/reset-password');
   const [searching, setSearching] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -35,10 +35,7 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.slice(1));
     const token = params.get('token');
-    if (window.location.pathname === '/reset-password') {
-      setShowAuth(true);
-      window.history.replaceState({}, '', window.location.pathname);
-    }
+    if (window.location.pathname === '/reset-password') window.history.replaceState({}, '', window.location.pathname);
     if (window.location.pathname === '/verify-email' && token) {
       api.verifyEmail(token).then(() => setAuthLinkNotice('Email verified. You can sign in now.')).catch((error) => setAuthLinkNotice(error.message));
       window.history.replaceState({}, '', '/');
