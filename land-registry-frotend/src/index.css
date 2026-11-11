@@ -24,6 +24,37 @@ textarea {
   font: inherit;
 }
 
+:focus-visible {
+  outline: 3px solid #fbbf24;
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .lrc-search-form {
+    flex-direction: column;
+  }
+
+  .lrc-search-form button {
+    min-height: 48px;
+    justify-content: center;
+  }
+
+  .lrc-search-result {
+    padding: 1rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media (max-width: 820px) {
   .lrc-dashboard-grid {
     grid-template-columns: 1fr !important;

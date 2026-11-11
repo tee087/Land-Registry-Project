@@ -28,6 +28,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
   const [resetToken, setResetToken] = useState(new URLSearchParams(window.location.hash.slice(1)).get('token') || '');
   const [mode, setMode] = useState(window.location.pathname === '/reset-password' ? 'reset' : initialMode);
   const [busy, setBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
     fullName: '',
@@ -111,7 +112,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
           if (!result.emailSent) throw new Error('The email provider did not confirm the send. Try again in a minute.');
           sessionStorage.setItem('lrc.verificationEmail', form.email);
           window.history.pushState({}, '', '/verify-email');
-          setNotice('Brevo accepted the verification email. Check your inbox and spam folder.');
+          setNotice(`Email sent to ${form.email}. Check your inbox for the six-digit verification code.`);
           setMode('verify');
           return;
         }
@@ -336,7 +337,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
 
         {notice && <p role="status" style={{ color: '#86efac', fontSize: '0.85rem' }}>{notice}</p>}
         {mode === 'login' && <button type="button" onClick={() => switchMode('forgot')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Forgot password?</button>}
-        {(mode === 'login' || mode === 'verify') && <button type="button" onClick={async () => { try { const { data } = await api.requestEmailVerification(form.email); setNotice(data.emailSent ? 'Brevo accepted a new verification email. Check your inbox and spam folder.' : 'A code was not sent. Check the email address and wait one minute before requesting another code.'); } catch (requestError) { setError(requestError.message); } }} style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>{mode === 'verify' ? 'Resend code' : 'Resend verification code'}</button>}
+        {(mode === 'login' || mode === 'verify') && <button type="button" disabled={resendBusy} onClick={async () => { setResendBusy(true); setError(null); setNotice(''); try { const { data } = await api.requestEmailVerification(form.email); if (data.emailSent) setNotice(`Email sent to ${form.email}. Check your inbox for the verification code.`); else setError('We could not send a code. Check the email address and try again in one minute.'); } catch (requestError) { setError(requestError.message); } finally { setResendBusy(false); } }} style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: 0, color: '#7dd3fc', cursor: resendBusy ? 'wait' : 'pointer', opacity: resendBusy ? 0.65 : 1 }}>{resendBusy ? 'Sending code…' : mode === 'verify' ? 'Resend code' : 'Resend verification code'}</button>}
         {mode === 'forgot' && <button type="button" onClick={() => switchMode('login')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Return to sign in</button>}
 
         {mode === 'register' && (

@@ -16,7 +16,8 @@ export default function TransfersPanel({ user }) {
   const [notice, setNotice] = useState(null);
   const [review, setReview] = useState(null);
 
-  const canCreate = ['landowner', 'administrator'].includes(user?.role);
+  const canCreate = user?.role === 'administrator'
+    || (user?.role === 'landowner' && ['seller', 'buyer_seller'].includes(user?.accountType));
   const canReview = ['registrar', 'administrator'].includes(user?.role);
 
   const transfersResource = useResource(
@@ -87,6 +88,7 @@ export default function TransfersPanel({ user }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.75rem', color: '#cbd5e1', fontSize: '0.88rem' }}>
           {[
             ['Buyer and seller', 'Agree written sale terms, confirm identities, and use advocates for conveyancing and execution.'],
+            ['Witnesses', 'Have the required parties and witnesses execute the transfer documents as advised by the conveyancing advocate. Witness details and signatures are not collected or verified by this app.'],
             ['Conveyancing team', 'The parties’ advocates handle the sale agreement, transfer instrument, execution, and lodgement. A registered valuer prepares the valuation; a licensed surveyor may be needed for boundary or survey issues.'],
             ['Official land search', 'Buyer should obtain an official search to confirm the registered proprietor and recorded interests, charges, or cautions.'],
             ['Land Control Board', 'For a controlled transaction involving agricultural land, obtain the required LCB consent. It is not a blanket requirement for every sale.'],
@@ -97,7 +99,7 @@ export default function TransfersPanel({ user }) {
         <p style={{ margin: '12px 0 0', color: '#94a3b8', fontSize: '0.78rem' }}>This platform is not Ardhisasa or a government registry and does not grant consent or replace legal advice. Confirm current requirements with the relevant land registry or a Kenyan conveyancing advocate.</p>
       </Card>
       {canCreate && (
-        <Card title="Initiate a transfer" subtitle="Only the current owner can initiate a transfer. The recipient must have an active account. A registrar must approve before ownership changes.">
+        <Card title="Initiate a transfer" subtitle="Seller accounts that are current parcel owners can initiate a transfer. The buyer must have an active account. A registrar must review it before ownership changes.">
           <form onSubmit={createTransfer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.8rem' }}>
             <Field label="Parcel *" hint={parcels.length === 0 ? 'No parcels are visible to your account.' : undefined}>
               <select style={inputStyle} required value={parcelId} onChange={(event) => setParcelId(event.target.value)}>
@@ -128,6 +130,9 @@ export default function TransfersPanel({ user }) {
           {error && <Notice tone="error" style={{ marginTop: '0.8rem' }}>{error}</Notice>}
           {notice && <Notice tone="success" style={{ marginTop: '0.8rem' }}>{notice}</Notice>}
         </Card>
+      )}
+      {!canCreate && user?.accountType === 'buyer' && (
+        <Card title="Buyer account" subtitle="You can receive a transfer request from a seller. Ask the seller to register your account email as the recipient; a registrar must review the request before the registry ownership record changes." />
       )}
 
       <Card

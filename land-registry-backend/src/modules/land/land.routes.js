@@ -375,6 +375,9 @@ router.post(
   '/transfers',
   authorize('transfer:create'),
   asyncHandler(async (req, res) => {
+    if (req.user.role !== 'administrator' && req.user.accountType === 'buyer') {
+      throw new AppError('Buyer accounts cannot initiate a sale transfer. The current owner must submit it.', 403, 'SELLER_ACCOUNT_REQUIRED');
+    }
     const parcelId = parseId(req.body?.parcelId, 'parcelId');
     const toOwnerId = parseId(req.body?.toOwnerId, 'toOwnerId');
     const parcel = await LandParcel.findByPk(parcelId);

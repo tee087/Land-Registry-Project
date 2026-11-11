@@ -678,16 +678,19 @@ export default function App() {
               <p style={{ color: '#e2e8f0', fontSize: '1.1rem', textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>Search a parcel number in the registry database. Authorized roles can also compare the record with the on-chain anchor.</p>
             </div>
 
-            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '12px', marginBottom: '2rem' }}>
+            <form className="lrc-search-form" onSubmit={handleSearch} style={{ display: 'flex', gap: '12px', marginBottom: '2rem' }}>
               <input 
                 type="text" 
+                aria-label="Parcel number to search"
+                aria-required="true"
+                required
                 placeholder="Try: NAIROBI/BLOCK103/45 or MOMBASA/BLOCK12/8" 
                 value={parcelId} 
                 onChange={(e) => setParcelId(e.target.value)}
                 style={{ flex: 1, padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.4)', background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(12px)', color: '#fff', fontSize: '1.05rem', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}
               />
-              <button type="submit" disabled={searching} style={{ background: searching ? '#0e7490' : '#38bdf8', color: '#0f172a', border: 'none', padding: '0 30px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.05rem', cursor: searching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
-                <Search size={20} /> {searching ? 'Verifying…' : 'Verify'}
+              <button type="submit" disabled={searching} aria-busy={searching} style={{ background: searching ? '#0e7490' : '#38bdf8', color: '#0f172a', border: 'none', padding: '0 30px', borderRadius: '12px', fontWeight: 'bold', fontSize: '1.05rem', cursor: searching ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 0 20px rgba(56, 189, 248, 0.5)' }}>
+                <Search size={20} /> {searching ? 'Searching registry…' : 'Search registry'}
               </button>
             </form>
 
@@ -698,7 +701,7 @@ export default function App() {
                   <span style={{ fontWeight: '600' }}>{searchResult.error}</span>
                 </div>
               ) : (
-                <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '2rem', color: '#fff', boxShadow: '0 0 35px rgba(56, 189, 248, 0.2)' }}>
+                <div className="lrc-search-result" style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '2rem', color: '#fff', boxShadow: '0 0 35px rgba(56, 189, 248, 0.2)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
                     <div>
                       <h3 style={{ margin: 0, fontSize: '1.6rem', color: '#38bdf8', fontWeight: 'bold' }}>{searchResult.parcelId}</h3>
@@ -816,7 +819,7 @@ export default function App() {
                 </div>
 
                 {currentGISParcel ? (
-                  <iframe title={`Map location for ${currentGISParcel.parcelNumber}`} width="100%" height="100%" style={{ border: 0 }} loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(currentGISParcel.longitude) - 0.015}%2C${Number(currentGISParcel.latitude) - 0.015}%2C${Number(currentGISParcel.longitude) + 0.015}%2C${Number(currentGISParcel.latitude) + 0.015}&layer=mapnik&marker=${currentGISParcel.latitude}%2C${currentGISParcel.longitude}`} />
+                  <iframe title={`Map location for ${currentGISParcel.parcelNumber}`} aria-label={`OpenStreetMap location for parcel ${currentGISParcel.parcelNumber}`} referrerPolicy="no-referrer" width="100%" height="100%" style={{ border: 0 }} loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(currentGISParcel.longitude) - 0.015}%2C${Number(currentGISParcel.latitude) - 0.015}%2C${Number(currentGISParcel.longitude) + 0.015}%2C${Number(currentGISParcel.latitude) + 0.015}&layer=mapnik&marker=${currentGISParcel.latitude}%2C${currentGISParcel.longitude}`} />
                 ) : (
                   <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#cbd5e1', textAlign: 'center', padding: '2rem' }}><MapPin size={36} /><p>No parcel has stored latitude and longitude coordinates yet.</p></div>
                 )}

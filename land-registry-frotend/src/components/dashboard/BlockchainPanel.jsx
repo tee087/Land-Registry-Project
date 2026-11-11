@@ -144,7 +144,7 @@ export default function BlockchainPanel({ user }) {
                   {verification.blockchain?.onChain ? (
                     <>
                       <div style={{ color: '#f8fafc', fontSize: '0.85rem', marginBottom: '3px' }}>
-                        Transaction reference: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{shortHash(verification.blockchain.onChain.transactionReference || verification.blockchain.onChain.parcelReference, 6)}</span>
+                        Transaction reference: <span title={verification.blockchain.onChain.transactionReference || verification.blockchain.onChain.parcelReference || ''} style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{shortHash(verification.blockchain.onChain.transactionReference || verification.blockchain.onChain.parcelReference, 6)}</span>
                       </div>
                       <div style={{ color: '#cbd5e1', fontSize: '0.8rem', marginBottom: '3px' }}>
                         Status: <StatusBadge status={verification.blockchain.onChain.status} />
@@ -157,7 +157,11 @@ export default function BlockchainPanel({ user }) {
                       </div>
                       {verification.blockchain.transactionHash && (
                         <div style={{ color: '#38bdf8', fontSize: '0.8rem', marginBottom: '3px' }}>
-                          Tx hash: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{shortHash(verification.blockchain.transactionHash, 6)}</span>
+                          Tx hash: <span title={verification.blockchain.transactionHash} style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{shortHash(verification.blockchain.transactionHash, 6)}</span>
+                          <details style={{ marginTop: '5px', color: '#cbd5e1' }}>
+                            <summary style={{ cursor: 'pointer' }}>Show full transaction hash</summary>
+                            <code style={{ display: 'block', marginTop: '5px', overflowWrap: 'anywhere', userSelect: 'all' }}>{verification.blockchain.transactionHash}</code>
+                          </details>
                         </div>
                       )}
                       {verification.blockchain.confirmedAt && (
