@@ -267,9 +267,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
                 value={form.phone}
                 onChange={update('phone')}
                 required
-                pattern="\\+?[0-9]{9,15}"
+                pattern="\+?[0-9]{9,15}"
+                title="Use digits only: Kenyan local format 0712345678 or international format +254712345678. Do not add spaces or hyphens."
                 placeholder="+254700000000"
               />
+              <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '5px 0 0', textAlign: 'left' }}>
+                Use 0712345678 or +254712345678. Enter digits only, with no spaces or hyphens.
+              </p>
             </div>
           )}
 
