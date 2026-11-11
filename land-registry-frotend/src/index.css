@@ -1,0 +1,57 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@media (max-width: 820px) {
+  .lrc-dashboard-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lrc-dashboard-grid > nav {
+    position: static !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+  }
+
+  .lrc-footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+}
+
+@media (max-width: 1024px) and (min-width: 821px) {
+  .lrc-footer-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 32px !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  .lrc-footer-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 40px !important;
+  }
+}
+

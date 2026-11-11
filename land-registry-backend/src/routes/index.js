@@ -1,0 +1,22 @@
+import { Router } from 'express';
+import healthRoutes from './healthRoutes.js';
+import authRoutes from '../modules/auth/auth.routes.js';
+import userRoutes from '../modules/users/user.routes.js';
+import landRoutes from '../modules/land/land.routes.js';
+import documentRoutes from '../modules/documents/document.routes.js';
+import auditRoutes from '../modules/audit/audit.routes.js';
+import notificationRoutes from '../modules/notifications/notification.routes.js';
+import evidenceRoutes from '../modules/evidence/evidence.routes.js';
+import blockchainRoutes from '../modules/blockchain/blockchain.routes.js';
+
+const router = Router();
+router.use(healthRoutes);
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
+router.use(landRoutes);
+router.use(documentRoutes);
+router.use(auditRoutes);
+router.use(notificationRoutes);
+router.use(evidenceRoutes);
+router.use(blockchainRoutes);
+export default router;

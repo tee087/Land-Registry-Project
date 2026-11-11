@@ -1,0 +1,15 @@
+import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
+import * as controller from './auth.controller.js';
+import { validate } from '../../middleware/validate.js';
+import { authenticate } from '../../middleware/authenticate.js';
+import { registerSchema, loginSchema, refreshSchema } from './auth.validation.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
+const router = Router();
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-7', legacyHeaders: false });
+router.post('/register', authLimiter, validate(registerSchema), asyncHandler(controller.register));
+router.post('/login', authLimiter, validate(loginSchema), asyncHandler(controller.login));
+router.post('/refresh', authLimiter, validate(refreshSchema), asyncHandler(controller.refresh));
+router.post('/logout', validate(refreshSchema), asyncHandler(controller.logout));
+router.get('/me', authenticate, asyncHandler(controller.me));
+export default router;

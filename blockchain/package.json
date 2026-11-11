@@ -1,0 +1,16 @@
+{
+  "name": "land-registry-blockchain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hardhat project for the LandRegistryChain Solidity contracts",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:localhost": "hardhat run scripts/deploy.js --network localhost"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.0.8",
+    "ethers": "^6.13.4",
+    "hardhat": "^2.22.17"
+  }
+}
