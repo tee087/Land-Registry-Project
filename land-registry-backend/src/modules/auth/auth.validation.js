@@ -10,8 +10,13 @@ export const registerSchema = z.object({
   phone: z.string().trim().regex(/^\+?[0-9]{9,15}$/).optional(),
   password,
 }).strict();
-export const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(1).max(128) }).strict();
+export const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(1).max(128), mfaCode: z.string().regex(/^\d{6}$/).optional() }).strict();
+export const mfaSetupSchema = z.object({ password: z.string().min(1).max(128) }).strict();
+export const mfaCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/) }).strict();
 export const refreshSchema = z.object({ refreshToken: z.string().min(40).max(200) }).strict();
+export const tokenSchema = z.object({ token: z.string().min(32).max(200) }).strict();
+export const resetPasswordSchema = z.object({ token: z.string().min(32).max(200), password }).strict();
+export const passwordResetRequestSchema = z.object({ email: z.string().trim().email().max(190).transform((v) => v.toLowerCase()) }).strict();
 export const updateProfileSchema = z.object({
   fullName: z.string().trim().min(2).max(120).optional(),
   phone: z.string().trim().regex(/^\+?[0-9]{9,15}$/).nullable().optional(),

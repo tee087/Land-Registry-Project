@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/useAuth.js';
+import { api } from '../api/client.js';
 
 const inputStyle = {
   width: '100%',
@@ -24,15 +25,19 @@ const labelStyle = {
 export default function AuthModal({ open, onClose }) {
   const { login, register, error, setError } = useAuth();
   const dialogRef = useRef(null);
-  const [mode, setMode] = useState('login');
+  const [resetToken, setResetToken] = useState(new URLSearchParams(window.location.hash.slice(1)).get('token') || '');
+  const [mode, setMode] = useState(window.location.pathname === '/reset-password' ? 'reset' : 'login');
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
     fullName: '',
     email: '',
     phone: '',
     password: '',
     confirmPassword: '',
+    mfaCode: '',
   });
+  const [mfaSetup, setMfaSetup] = useState(null);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -51,6 +56,7 @@ export default function AuthModal({ open, onClose }) {
   const switchMode = (next) => {
     setMode(next);
     setError(null);
+    setNotice('');
   };
 
   const submit = async (event) => {
@@ -58,8 +64,29 @@ export default function AuthModal({ open, onClose }) {
     setBusy(true);
     try {
       if (mode === 'login') {
-        await login(form.email, form.password);
-      } else {
+        const result = await login(form.email, form.password, form.mfaCode);
+        if (result.mfaEnrollmentRequired) setMode('mfaSetup');
+        else onClose();
+      } else if (mode === 'mfaSetup') {
+        if (!mfaSetup) {
+          const { data } = await api.setupMfa(form.password);
+          setMfaSetup(data);
+          setNotice('Add this secret to an authenticator app, then enter the current six-digit code.');
+          return;
+        }
+        await api.enableMfa(form.mfaCode);
+        setNotice('Multi-factor authentication enabled.');
+        onClose();
+      } else if (mode === 'forgot') {
+        await api.requestPasswordReset(form.email);
+        setNotice('If an active account matches that address, a reset link will be sent.');
+      } else if (mode === 'reset') {
+        if (form.password !== form.confirmPassword) throw new Error('Passwords do not match');
+        await api.resetPassword(resetToken, form.password);
+        setNotice('Password reset. You can now sign in.');
+        setMode('login');
+        window.history.replaceState({}, '', '/');
+      } else if (mode === 'register') {
         if (form.password !== form.confirmPassword) {
           throw new Error('Passwords do not match');
         }
@@ -69,10 +96,15 @@ export default function AuthModal({ open, onClose }) {
           password: form.password,
         };
         if (form.phone.trim()) payload.phone = form.phone.trim();
-        await register(payload);
+        const result = await register(payload);
+        if (result.verificationRequired) {
+          setNotice('Account created. Check your email for a verification link before signing in.');
+          return;
+        }
+        onClose();
       }
-      onClose();
-    } catch {
+    } catch (submitError) {
+      setError(submitError.message);
       // Error is surfaced by the auth context / thrown validation message below.
     } finally {
       setBusy(false);
@@ -100,7 +132,7 @@ export default function AuthModal({ open, onClose }) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={mode === 'login' ? 'Sign in' : 'Create landowner account'}
+        aria-label={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
         onClick={(event) => event.stopPropagation()}
         style={{
           width: '100%',
@@ -114,7 +146,7 @@ export default function AuthModal({ open, onClose }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#fff' }}>
-            {mode === 'login' ? 'Sign in' : 'Create landowner account'}
+            {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
           </h2>
           <button
             onClick={onClose}
@@ -125,7 +157,7 @@ export default function AuthModal({ open, onClose }) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem' }}>
+        {(mode === 'login' || mode === 'register') && <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem' }}>
           <button
             type="button"
             onClick={() => switchMode('login')}
@@ -168,7 +200,7 @@ export default function AuthModal({ open, onClose }) {
           >
             <UserPlus size={16} /> Register
           </button>
-        </div>
+        </div>}
 
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
           {mode === 'register' && (
@@ -186,7 +218,7 @@ export default function AuthModal({ open, onClose }) {
             </div>
           )}
 
-          <div>
+          {mode !== 'reset' && mode !== 'mfaSetup' && <div>
             <label style={labelStyle}>Email</label>
             <input
               style={inputStyle}
@@ -196,7 +228,9 @@ export default function AuthModal({ open, onClose }) {
               required
               placeholder="jane@example.test"
             />
-          </div>
+          </div>}
+
+          {mode === 'reset' && <div><label style={labelStyle}>Reset token</label><input style={inputStyle} value={resetToken} onChange={(event) => setResetToken(event.target.value)} required /></div>}
 
           {mode === 'register' && (
             <div>
@@ -210,7 +244,7 @@ export default function AuthModal({ open, onClose }) {
             </div>
           )}
 
-          <div>
+          {mode !== 'forgot' && mode !== 'mfaSetup' && <div>
             <label style={labelStyle}>Password</label>
             <input
               style={inputStyle}
@@ -218,12 +252,18 @@ export default function AuthModal({ open, onClose }) {
               value={form.password}
               onChange={update('password')}
               required
-              minLength={mode === 'register' ? 10 : 1}
+              minLength={mode === 'register' || mode === 'reset' ? 10 : 1}
               maxLength={128}
             />
-          </div>
+          </div>}
 
-          {mode === 'register' && (
+          {mode === 'login' && <div><label style={labelStyle}>Authenticator code (privileged accounts)</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} /></div>}
+          {mode === 'mfaSetup' && <div style={{ color: '#cbd5e1', fontSize: '0.9rem', overflowWrap: 'anywhere' }}>
+            <p>Privileged accounts must enroll an authenticator before using registry functions.</p>
+            {mfaSetup && <><p><strong>Secret:</strong> {mfaSetup.secret}</p><p>Authenticator URI: {mfaSetup.otpauthUrl}</p><label style={labelStyle}>Six-digit code</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} required /></>}
+          </div>}
+
+          {(mode === 'register' || mode === 'reset') && (
             <div>
               <label style={labelStyle}>Confirm password</label>
               <input
@@ -257,9 +297,14 @@ export default function AuthModal({ open, onClose }) {
               cursor: busy ? 'not-allowed' : 'pointer',
             }}
           >
-            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
+            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : mode === 'forgot' ? 'Send recovery link' : mode === 'reset' ? 'Reset password' : mode === 'mfaSetup' ? (mfaSetup ? 'Enable MFA' : 'Begin MFA setup') : 'Create account'}
           </button>
         </form>
+
+        {notice && <p role="status" style={{ color: '#86efac', fontSize: '0.85rem' }}>{notice}</p>}
+        {mode === 'login' && <button type="button" onClick={() => switchMode('forgot')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Forgot password?</button>}
+        {mode === 'login' && <button type="button" onClick={async () => { try { await api.requestEmailVerification(form.email); setNotice('If verification is needed for that account, a link will be sent.'); } catch (requestError) { setError(requestError.message); } }} style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Resend verification email</button>}
+        {mode === 'forgot' && <button type="button" onClick={() => switchMode('login')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Return to sign in</button>}
 
         {mode === 'register' && (
           <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '0.9rem 0 0 0', textAlign: 'left' }}>

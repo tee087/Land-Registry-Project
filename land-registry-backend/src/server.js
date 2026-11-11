@@ -8,7 +8,7 @@ async function start() {
 
   if (!connected) {
     if (env.db.requireOnStartup) {
-      console.error('[server] MySQL is unreachable. Check DB_* settings in .env and that MySQL is running. Exiting.');
+      console.error('[server] PostgreSQL is unreachable. Check DATABASE_URL or DB_* settings in .env. Exiting.');
       process.exit(1);
     }
     console.warn('[server] Starting WITHOUT database (DB_REQUIRE_ON_STARTUP=false). /api/health will report "degraded".');

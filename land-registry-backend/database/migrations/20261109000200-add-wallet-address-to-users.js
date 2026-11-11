@@ -6,7 +6,6 @@ module.exports = {
       type: Sequelize.STRING(42),
       allowNull: true,
       unique: true,
-      after: 'phone',
     });
   },
   async down(queryInterface) {

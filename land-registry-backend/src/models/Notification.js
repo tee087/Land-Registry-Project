@@ -2,8 +2,8 @@ import { DataTypes } from 'sequelize';
 import { sequelize } from '../config/database.js';
 
 const Notification = sequelize.define('Notification', {
-  id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
-  userId: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false, field: 'user_id' },
+  id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
+  userId: { type: DataTypes.BIGINT, allowNull: false, field: 'user_id' },
   type: { type: DataTypes.STRING(60), allowNull: false },
   category: { type: DataTypes.STRING(60), allowNull: true, field: 'category' },
   title: { type: DataTypes.STRING(160), allowNull: false },

@@ -12,6 +12,9 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   catch { throw new AppError('Invalid or expired access token', 401, 'INVALID_TOKEN'); }
   const user = await User.findByPk(payload.sub);
   if (!user || user.status !== 'active') throw new AppError('Account is unavailable', 401, 'ACCOUNT_UNAVAILABLE');
+  if (env.isProduction && ['registrar', 'administrator', 'investigator', 'auditor'].includes(user.role) && !user.mfaEnabledAt && !req.path.startsWith('/mfa/')) {
+    throw new AppError('Complete authenticator enrollment to use this privileged account', 403, 'MFA_ENROLLMENT_REQUIRED');
+  }
   req.user = user;
   next();
 });

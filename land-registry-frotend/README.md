@@ -38,7 +38,8 @@ npm run dev
 Start the backend first (`cd ../land-registry-backend && npm run dev`) and make sure
 its `CORS_ORIGINS` includes this app's origin (`http://localhost:5173` by default).
 
-For the Docker stack, the frontend is built with `VITE_API_BASE_URL=/api` and nginx
+For Vercel services, the frontend uses the same-origin `/api` path, which the root
+`vercel.json` routes to the backend service. For the Docker stack, the frontend is built with `VITE_API_BASE_URL=/api` and nginx
 proxies `/api/` to the backend container.
 
 ## Scripts

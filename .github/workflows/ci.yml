@@ -28,25 +28,26 @@ jobs:
       run:
         working-directory: land-registry-backend
     services:
-      mysql:
-        image: mysql:8.0
+      postgres:
+        image: postgres:16
         env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: land_registry_chain_test
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: land_registry_chain_test
+          POSTGRES_USER: postgres
         ports:
-          - 3306:3306
+          - 5432:5432
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-cmd="pg_isready -U postgres -d land_registry_chain_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
     env:
       NODE_ENV: test
       DB_HOST: 127.0.0.1
-      DB_PORT: 3306
+      DB_PORT: 5432
       DB_NAME: land_registry_chain
       DB_NAME_TEST: land_registry_chain_test
-      DB_USER: root
+      DB_USER: postgres
       DB_PASSWORD: root
       JWT_ACCESS_SECRET: ci-only-secret-value-at-least-32-chars-long
       CORS_ORIGINS: http://localhost:5173

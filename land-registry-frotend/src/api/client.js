@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '');
 
 const ACCESS_KEY = 'lrc.accessToken';
 const REFRESH_KEY = 'lrc.refreshToken';
@@ -99,6 +99,46 @@ async function rawRequest(path, { method = 'GET', body, token, responseType = 'j
 
 let refreshing = null;
 
+async function sha256Base64(file) {
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  return btoa(String.fromCharCode(...new Uint8Array(digest)));
+}
+
+function fileMimeType(file) {
+  if (file.type) return file.type;
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  return ({ pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', tif: 'image/tiff', tiff: 'image/tiff' })[extension] || 'application/octet-stream';
+}
+
+async function uploadDocumentFile(resource, id, file) {
+  const metadata = {
+    originalName: file.name,
+    mimeType: fileMimeType(file),
+    sizeBytes: file.size,
+    sha256: await sha256Base64(file),
+  };
+  const root = resource === 'parcel' ? `/parcels/${id}/documents` : `/registrations/${id}/documents`;
+
+  let ticket;
+  try {
+    ({ data: ticket } = await request(`${root}/upload-url`, { method: 'POST', body: metadata, auth: true }));
+  } catch (error) {
+    // Local development without S3 keeps support for small JSON uploads.
+    if (error.code !== 'DIRECT_UPLOAD_UNAVAILABLE' || file.size > 650 * 1024) throw error;
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Unable to read the selected file.'));
+      reader.readAsDataURL(file);
+    });
+    return request(root, { method: 'POST', body: { ...metadata, contentBase64: dataUrl }, auth: true });
+  }
+
+  const uploaded = await fetch(ticket.uploadUrl, { method: 'PUT', headers: ticket.headers, body: file });
+  if (!uploaded.ok) throw new ApiError('The document could not be stored. Check object storage CORS and retry.', { status: uploaded.status, code: 'DOCUMENT_STORAGE_FAILED' });
+  return request(`${root}/complete`, { method: 'POST', body: { ...metadata, storageKey: ticket.storageKey }, auth: true });
+}
+
 async function tryRefresh() {
   if (!tokenStore.refresh) return false;
   if (!refreshing) {
@@ -160,6 +200,12 @@ export const api = {
   // Auth / profile
   register: (input) => request('/auth/register', { method: 'POST', body: input }),
   login: (input) => request('/auth/login', { method: 'POST', body: input }),
+  verifyEmail: (token) => request('/auth/verify-email', { method: 'POST', body: { token } }),
+  requestEmailVerification: (email) => request('/auth/email-verification/request', { method: 'POST', body: { email } }),
+  requestPasswordReset: (email) => request('/auth/password-reset/request', { method: 'POST', body: { email } }),
+  resetPassword: (token, password) => request('/auth/password-reset/confirm', { method: 'POST', body: { token, password } }),
+  setupMfa: (password) => request('/auth/mfa/setup', { method: 'POST', body: { password }, auth: true }),
+  enableMfa: (code) => request('/auth/mfa/enable', { method: 'POST', body: { code }, auth: true }),
   logout: (refreshToken) => request('/auth/logout', { method: 'POST', body: { refreshToken } }),
   me: () => request('/auth/me', { auth: true }),
   updateProfile: (input) => request('/users/me', { method: 'PATCH', body: input, auth: true }),
@@ -195,16 +241,24 @@ export const api = {
   reviewTransfer: (id, input) => request(`/transfers/${id}/review`, { method: 'POST', body: input, auth: true }),
 
   // Documents
-  uploadDocument: (parcelId, input) =>
-    request(`/parcels/${parcelId}/documents`, { method: 'POST', body: input, auth: true }),
-  uploadDocumentToRegistration: (registrationId, input) =>
-    request(`/registrations/${registrationId}/documents`, { method: 'POST', body: input, auth: true }),
+  uploadDocument: (parcelId, file) => uploadDocumentFile('parcel', parcelId, file),
+  uploadDocumentToRegistration: (registrationId, file) => uploadDocumentFile('registration', registrationId, file),
   listDocuments: (parcelId) => request(`/parcels/${parcelId}/documents`, { auth: true }),
   listRegistrationDocuments: (registrationId) =>
     request(`/registrations/${registrationId}/documents`, { auth: true }),
   getDocument: (id) => request(`/documents/${id}`, { auth: true }),
   verifyDocument: (id) => request(`/documents/${id}/verify`, { method: 'POST', auth: true }),
-  downloadDocument: (id) => request(`/documents/${id}/download`, { auth: true, responseType: 'blob' }),
+  downloadDocument: async (id, filename) => {
+    try {
+      const { data } = await request(`/documents/${id}/download-url`, { auth: true });
+      const response = await fetch(data.downloadUrl);
+      if (!response.ok) throw new ApiError('Unable to download document from storage.', { status: response.status, code: 'DOCUMENT_DOWNLOAD_FAILED' });
+      return { blob: await response.blob(), filename, contentType: response.headers.get('Content-Type') };
+    } catch (error) {
+      if (error.code !== 'DIRECT_DOWNLOAD_UNAVAILABLE') throw error;
+      return request(`/documents/${id}/download`, { auth: true, responseType: 'blob' });
+    }
+  },
 
   // Evidence
   listEvidence: () => request('/evidence', { auth: true }),

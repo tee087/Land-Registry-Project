@@ -3,12 +3,11 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn('documents', 'registration_id', {
-      type: Sequelize.BIGINT.UNSIGNED,
+      type: Sequelize.BIGINT,
       allowNull: true,
       references: { model: 'registrations', key: 'id' },
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL',
-      after: 'parcel_id',
     });
     await queryInterface.addIndex('documents', ['registration_id']);
   },

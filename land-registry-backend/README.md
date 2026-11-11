@@ -1,12 +1,13 @@
 # LandRegistryChain Backend
 
-Node.js 20+ / Express 4 / MySQL 8 (Sequelize) REST API. ES modules. Independent of the React frontend.
+Node.js 20+ / Express 4 / PostgreSQL (Sequelize) REST API. ES modules. Independent of the React frontend.
 
 ## 1. Current status
 
-This is a working prototype of the land-registry domain, not a production-certified
-system. Do not use real landowner data until security, legal and operational reviews
-are complete.
+This repository contains a production-oriented implementation baseline. It is not
+approved to replace an official land registry or hold legally authoritative records
+until the deployment, security, legal, privacy, backup and recovery controls in
+[`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md) have been completed.
 
 Implemented:
 
@@ -15,20 +16,21 @@ Implemented:
 - Land parcels with identifiers, status, optional coordinates and ownership history.
 - Registration applications with registrar review/approval.
 - Ownership transfers with registrar review/approval.
-- Document upload, versioning, SHA-256 integrity checks, download and resource-level access.
+- Private object-storage document upload/download using short-lived signed URLs,
+  checksum verification, versioning and resource-level access.
 - Centralized audit logging written by domain operations.
 - In-app notifications.
 - Forensic evidence registration and custody events.
 - Durable blockchain outbox, worker and event listener, plus a Hardhat/Solidity contract.
-- Docker Compose stack (MySQL, migrations, backend, frontend/nginx).
+- Docker Compose stack (PostgreSQL, migrations, backend, frontend/nginx).
 
-Not implemented yet:
+Remaining production work:
 
-- Password change, password reset, email verification.
+- Registrar invitation/approval and privileged-account recovery procedures.
 - Full joint-ownership rules (the schema records `share_percent`, but workflows
   currently grant/settle 100% ownership).
 - GIS/spatial queries; latitude and longitude are stored but not spatially indexed.
-- Email/SMS notification delivery (only in-app notifications exist).
+- Production SMTP and shared Redis credentials/configuration, plus operational alerting.
 - Automated frontend tests and comprehensive auth/domain test coverage.
 - Blockchain backfill, reorg handling and an automated reconciliation job.
 
@@ -39,7 +41,7 @@ the worker/listener has processed the operation against a configured chain.
 ## 2. Requirements
 
 - Node.js 20+ (see `.nvmrc`)
-- MySQL 8+ (XAMPP/WAMP/MySQL Server all work)
+- PostgreSQL 14+ (Neon or local PostgreSQL)
 - Optional: a local Hardhat node and deployed `LandRegistry` contract for blockchain writes
 
 ## 3. Installation
@@ -59,9 +61,10 @@ Copy `.env.example` to `.env` and edit it. Never commit or share `.env`.
 | PORT | 5000 | API port |
 | TRUST_PROXY | 0 | Reverse-proxy hops to trust |
 | BODY_LIMIT | 1mb | Max JSON / form body size |
-| DB_HOST, DB_PORT | 127.0.0.1, 3306 | MySQL location |
-| DB_NAME, DB_USER, DB_PASSWORD | land_registry_chain, lrc_app, - | Runtime MySQL database/account |
-| DB_MIGRATION_USER, DB_MIGRATION_PASSWORD | DB_USER/DB_PASSWORD | Separate account used only by sequelize-cli |
+| DATABASE_URL | - | PostgreSQL connection string; use Neon’s pooled URL for the deployed API |
+| DB_HOST, DB_PORT | 127.0.0.1, 5432 | Local PostgreSQL location when `DATABASE_URL` is blank |
+| DB_NAME, DB_USER, DB_PASSWORD | land_registry_chain, postgres, - | Local PostgreSQL database/account when `DATABASE_URL` is blank |
+| DB_MIGRATION_USER, DB_MIGRATION_PASSWORD | DB_USER/DB_PASSWORD | Optional separate account used only by sequelize-cli |
 | DB_NAME_TEST | `<DB_NAME>_test` | Database used when NODE_ENV=test (must end in `_test`) |
 | DB_LOGGING | false | Print SQL (dev only) |
 | DB_POOL_MAX / MIN / ACQUIRE_MS / IDLE_MS | 10 / 0 / 30000 / 10000 | Connection pool |
@@ -73,25 +76,25 @@ Copy `.env.example` to `.env` and edit it. Never commit or share `.env`.
 | JWT_ACCESS_TTL | 15m | Access-token lifetime |
 | REFRESH_TOKEN_TTL_DAYS | 7 | Refresh-token lifetime |
 | BCRYPT_ROUNDS | 12 | Password hashing cost (10-14) |
-| UPLOAD_DIR | uploads | Directory for uploaded document bytes |
+| DOCUMENT_STORAGE_DRIVER | local in development; s3 in production | Local disk or S3-compatible durable object storage |
+| S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY | - | Private bucket and credentials required in production |
+| S3_ENDPOINT | - | Optional custom S3 endpoint (for example, an S3-compatible provider) |
+| S3_FORCE_PATH_STYLE | false | Enable for providers that require path-style bucket addressing |
+| AWS_REGION | auto | Object-storage region; use the provider’s region value |
+| UPLOAD_DIR | uploads | Local development storage directory only |
 | BLOCKCHAIN_RPC_URL | - | EVM JSON-RPC URL (worker/listener) |
 | BLOCKCHAIN_CONTRACT_ADDRESS | - | Deployed `LandRegistry` address |
 | BLOCKCHAIN_PRIVATE_KEY | - | Backend signer key; never commit or log it |
 | BLOCKCHAIN_CHAIN_ID | - | Optional expected chain ID |
 
-In production, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `CORS_ORIGINS` and
-`JWT_ACCESS_SECRET` are mandatory; `*` is rejected for CORS and the JWT secret must be
-at least 32 characters.
+In production, set `DATABASE_URL` (preferred) or all of `DB_NAME`, `DB_USER` and
+`DB_PASSWORD`, plus `CORS_ORIGINS` and `JWT_ACCESS_SECRET`. Neon connections use TLS.
+`*` is rejected for CORS and the JWT secret must be at least 32 characters.
 
 ## 5. Database setup
 
-1. Edit the passwords in `database/setup.sql`, then run:
-   ```bash
-   mysql -u root -p < database/setup.sql
-   ```
-   (Or create the databases/users in phpMyAdmin.)
-2. Put the same credentials in `.env`.
-3. Run migrations:
+1. Create a PostgreSQL database. For Neon, create a project and copy its pooled connection string into `DATABASE_URL` in `.env`. For local PostgreSQL, create `land_registry_chain` and set the `DB_*` variables in `.env`.
+2. Run the migrations against that database:
    ```bash
    npm run db:migrate
    npm run db:migrate:status
@@ -117,6 +120,33 @@ curl http://localhost:5000/api/health/live   # liveness, no DB access
 curl http://localhost:5000/api/health/ready  # readiness, DB must be reachable
 ```
 
+### Vercel and Neon deployment
+
+The repository root `vercel.json` deploys the Vite frontend at `/` and the Express API
+under `/api/*`. The frontend calls the API through the same-origin `/api` route. The
+API uses `src/app.js` as its Express entrypoint; long-running blockchain workers are
+not part of that serverless function.
+
+1. Create a Neon database and configure `DATABASE_URL` in the Vercel backend service.
+   Use the pooled URL at runtime; run migrations from a protected job using a direct
+   URL with the `NODE_ENV` set appropriately. Never expose database URLs to Vite.
+2. Configure `NODE_ENV=production`, a unique 32+ character `JWT_ACCESS_SECRET`, and
+   `CORS_ORIGINS` for the deployed site. Add `S3_BUCKET`, `AWS_REGION`,
+   `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` for a private S3-compatible bucket.
+   Add `S3_ENDPOINT` for providers such as R2 and configure the bucket CORS policy
+   for the exact frontend origin, `PUT`, and the signed upload headers.
+3. Apply `npm run db:migrate` from this directory in a protected deployment job before
+   routing traffic to the new build. Do not run migrations during a Vercel build or
+   on every function cold start.
+4. Exercise the smoke-check and restore procedures in
+   [`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md). The blockchain worker requires
+   its own scheduled/worker deployment; it does not run continuously on Vercel.
+
+Keep all credentials in server-side environment settings, never in committed files
+or frontend `VITE_*` variables. The legal, security, account-recovery, backup and
+operational requirements for live registry data are listed in
+[`PRODUCTION_READINESS.md`](PRODUCTION_READINESS.md).
+
 ### Creating the first administrator
 
 Public registration always creates a `landowner`. Bootstrap the first administrator
@@ -139,7 +169,7 @@ npm test
 npm run lint
 ```
 
-The foundation tests do not require MySQL in most cases; the health test accepts
+The foundation tests do not require PostgreSQL in most cases; the health test accepts
 200 or 503. `NODE_ENV=test` requires the database name to end with `_test`.
 
 ## 8. API overview
@@ -177,15 +207,20 @@ Role checks alone are not sufficient; services also perform resource-level check
 
 ## 10. Documents and integrity
 
-Documents are uploaded as base64 JSON to `POST /parcels/:id/documents` (10 MB decoded
-limit), hashed with SHA-256, written under `UPLOAD_DIR` with a random storage key and
-versioned per `(parcel, originalName)`. `POST /documents/:id/verify` re-hashes the
-stored file and compares it with the recorded digest. Uploads and downloads are
-recorded in the audit log.
+In production, the API issues a five-minute signed upload URL after checking the
+user’s parcel ownership or registration access. The browser uploads directly to a
+private S3-compatible bucket, then the API checks the uploaded size, MIME type and
+S3 SHA-256 checksum before creating the document record. Download URLs expire after
+one minute. The API does not proxy file bytes through a Vercel Function. Configure
+the bucket’s CORS policy to allow the deployed frontend origin, `PUT`, and the
+`Content-Type` and `x-amz-checksum-sha256` headers. Keep the bucket private and block
+public ACLs. Local development can use local storage for small files; local storage
+is rejected in production. `POST /documents/:id/verify` re-hashes the stored bytes.
+Uploads and downloads are written to the audit log.
 
 ## 11. Blockchain integration
 
-The backend keeps MySQL as the source of truth and uses a transactional outbox
+The backend keeps PostgreSQL as the source of truth and uses a transactional outbox
 (`blockchain_transactions`) for approved operations. When `BLOCKCHAIN_RPC_URL`,
 `BLOCKCHAIN_CONTRACT_ADDRESS` and `BLOCKCHAIN_PRIVATE_KEY` are set:
 
@@ -209,11 +244,11 @@ re-enqueue as appropriate.
 From the repository root:
 
 ```bash
-cp .env.example .env        # set MYSQL_ROOT_PASSWORD, DB_NAME, JWT_ACCESS_SECRET, CORS_ORIGINS
+cp .env.example .env        # set DB_PASSWORD, JWT_ACCESS_SECRET, CORS_ORIGINS
 docker compose up --build
 ```
 
-This starts MySQL, runs migrations, then starts the backend and frontend. The API is
+This starts PostgreSQL, runs migrations, then starts the backend and frontend. The API is
 on `http://localhost:5000`, the frontend on `http://localhost:8080`. Blockchain
 variables are optional and passed through to the backend container.
 
@@ -228,7 +263,7 @@ src/models       Sequelize models for users, parcels, ownership, registrations,
                  transfers, documents, audit, notifications, evidence, blockchain
 src/services     audit/notification helpers, blockchain outbox, contract ABI
 src/utils        response envelope, AppError, asyncHandler
-database         MySQL setup, Sequelize CLI config and migrations
+database         PostgreSQL setup, Sequelize CLI config and migrations
 scripts          admin bootstrap, blockchain worker, blockchain listener
 test             foundation tests
 docs             API, audits and blockchain architecture

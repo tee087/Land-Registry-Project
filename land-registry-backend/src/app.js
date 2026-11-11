@@ -11,6 +11,7 @@ import routes from './routes/index.js';
 import { notFoundMiddleware } from './middleware/notFoundMiddleware.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
 import { AppError } from './utils/responseHandler.js';
+import { createRateLimitStore } from './config/redis-rate-limit.js';
 
 const app = express();
 
@@ -43,7 +44,8 @@ app.use(cors(corsOptions));
 // Logging (query strings are logged, so never put secrets in URLs)
 if (!env.isTest) {
   morgan.token('id', (req) => req.id);
-  app.use(morgan(':id :remote-addr :method :url :status :res[content-length] - :response-time ms'));
+  morgan.token('safe-url', (req) => req.path);
+  app.use(morgan(':id :remote-addr :method :safe-url :status :res[content-length] - :response-time ms'));
 }
 
 // Global rate limit
@@ -51,6 +53,7 @@ app.use(
   rateLimit({
     windowMs: env.rateLimit.windowMs,
     limit: env.rateLimit.max,
+    ...(env.redisUrl ? { store: createRateLimitStore('global') } : {}),
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     handler: (req, res, next) => next(new AppError('Too many requests, please try again later', 429, 'RATE_LIMITED')),

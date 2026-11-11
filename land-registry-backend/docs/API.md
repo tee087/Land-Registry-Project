@@ -30,7 +30,13 @@ Error:
 | Method | Path | Access |
 |---|---|---|
 | POST | `/auth/register` | Public; always creates `landowner`; rate limited |
-| POST | `/auth/login` | Public; rate limited |
+| POST | `/auth/login` | Public; email verification required in production; privileged roles use TOTP MFA |
+| POST | `/auth/verify-email` | Public; consumes one-time verification token |
+| POST | `/auth/email-verification/request` | Public; generic resend response; rate limited |
+| POST | `/auth/password-reset/request` | Public; generic response; rate limited |
+| POST | `/auth/password-reset/confirm` | Public; one-time token; revokes refresh sessions |
+| POST | `/auth/mfa/setup` | Authenticated privileged account; password recheck |
+| POST | `/auth/mfa/enable` | Authenticated privileged account; verifies six-digit TOTP |
 | POST | `/auth/refresh` | Public; rotates refresh token; rate limited |
 | POST | `/auth/logout` | Public; revokes supplied refresh token |
 | GET | `/auth/me` | Authenticated |
@@ -42,7 +48,7 @@ Registration body:
 ```
 
 Phone is optional. Password requires at least 10 characters with uppercase,
-lowercase and a number. Login body: `{ "email", "password" }`.
+lowercase and a number. Login body: `{ "email", "password", "mfaCode?" }`.
 Refresh/logout body: `{ "refreshToken": "..." }`.
 
 ## Users
@@ -156,22 +162,31 @@ are not implemented yet; workflows currently settle 100% ownership.
 
 | Method | Path | Access |
 |---|---|---|
-| POST | `/parcels/:id/documents` | `document:create` **and** current ownership of the parcel |
+| POST | `/parcels/:id/documents/upload-url` | `document:create` **and** current ownership of the parcel |
+| POST | `/parcels/:id/documents/complete` | Same; verifies the signed object upload before recording it |
+| POST | `/registrations/:id/documents/upload-url` | `document:create` **and** applicant ownership |
+| POST | `/registrations/:id/documents/complete` | Same; verifies the signed object upload before recording it |
 | GET | `/parcels/:id/documents` | `document:read`, `document:read:case`, or current ownership |
 | GET | `/documents/:id` | `document:read`, `document:read:case`, uploader, or parcel owner |
-| GET | `/documents/:id/download` | Same resource-level access as `GET /documents/:id` |
+| GET | `/documents/:id/download-url` | Same resource-level access; returns a 60-second signed URL |
 | POST | `/documents/:id/verify` | Same resource-level access as `GET /documents/:id` |
 
-Upload body:
+The frontend computes SHA-256, requests a signed upload URL with `originalName`,
+`mimeType`, `sizeBytes`, and base64 `sha256`, uploads the file directly to private
+object storage, then sends those fields plus `storageKey` to `/complete`. Production
+accepts PDF, JPEG, PNG, and TIFF files up to 10 MB. Signed URLs are short-lived and
+the server checks the provider checksum before saving a document record.
+
+Local development without object storage can use the compatibility upload route with
+a small base64 body:
 
 ```json
 { "originalName": "title.pdf", "mimeType": "application/pdf", "contentBase64": "<base64 or data URL>" }
 ```
 
-The decoded limit is 10 MB. The server computes SHA-256, stores the file under a random
-`storageKey` in `UPLOAD_DIR`, and versions documents per `(parcelId, originalName)`.
-Uploading the same filename again creates a new version and marks the previous one
-`isCurrent: false`.
+Local compatibility uploads are stored under a random `storageKey` in `UPLOAD_DIR`.
+Production disables this route and requires direct object-storage uploads. Uploading
+the same filename again creates a new version and marks the previous one `isCurrent: false`.
 
 Verify re-hashes the stored file and returns:
 

@@ -3,14 +3,15 @@
 require('dotenv').config();
 
 const base = {
+  use_env_variable: process.env.DATABASE_URL ? 'DATABASE_URL' : undefined,
   username: process.env.DB_MIGRATION_USER || process.env.DB_USER,
   password: process.env.DB_MIGRATION_PASSWORD || process.env.DB_PASSWORD || null,
   database: process.env.DB_NAME,
   host: process.env.DB_HOST || '127.0.0.1',
-  port: Number(process.env.DB_PORT) || 3306,
-  dialect: 'mysql',
+  port: Number(process.env.DB_PORT) || 5432,
+  dialect: 'postgres',
   logging: false,
-  timezone: '+00:00',
+  dialectOptions: process.env.DATABASE_URL ? { ssl: { require: true, rejectUnauthorized: true } } : {},
 };
 
 module.exports = {

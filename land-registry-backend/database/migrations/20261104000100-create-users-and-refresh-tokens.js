@@ -2,7 +2,7 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('users', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       full_name: { type: Sequelize.STRING(120), allowNull: false },
       email: { type: Sequelize.STRING(190), allowNull: false, unique: true },
       phone: { type: Sequelize.STRING(20), allowNull: true, unique: true },
@@ -15,8 +15,8 @@ module.exports = {
       updated_at: { type: Sequelize.DATE, allowNull: false },
     });
     await queryInterface.createTable('refresh_tokens', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
-      user_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false, references: { model: 'users', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
+      user_id: { type: Sequelize.BIGINT, allowNull: false, references: { model: 'users', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE' },
       token_hash: { type: Sequelize.CHAR(64), allowNull: false, unique: true },
       expires_at: { type: Sequelize.DATE, allowNull: false },
       revoked_at: { type: Sequelize.DATE, allowNull: true },

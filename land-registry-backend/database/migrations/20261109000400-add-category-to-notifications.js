@@ -5,7 +5,6 @@ module.exports = {
     await queryInterface.addColumn('notifications', 'category', {
       type: Sequelize.STRING(60),
       allowNull: true,
-      after: 'type',
     });
     await queryInterface.addIndex('notifications', ['category']);
   },

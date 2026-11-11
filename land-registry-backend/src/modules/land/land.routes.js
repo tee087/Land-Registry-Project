@@ -63,6 +63,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const q = String(req.query.q || '').trim().toUpperCase();
     if (!q) throw new AppError('Query parameter "q" is required', 422, 'VALIDATION_ERROR');
+    if (q.length > 80) throw new AppError('Parcel number is too long', 422, 'VALIDATION_ERROR');
+    const match = await LandParcel.findOne({ where: { parcelNumber: q }, attributes: ['id'] });
+    if (!match) return sendSuccess(res, { data: null, message: 'Parcel not found' });
+    await assertCanReadParcel(req.user, match.id);
     const parcel = await LandParcel.findOne({
       where: { parcelNumber: q },
       include: [
@@ -294,6 +298,9 @@ router.post(
     const result = await LandParcel.sequelize.transaction(async (transaction) => {
       const registration = await Registration.findByPk(parseId(req.params.id), { transaction, lock: transaction.LOCK.UPDATE });
       if (!registration) throw new AppError('Registration not found', 404, 'REGISTRATION_NOT_FOUND');
+      if (String(registration.applicantId) === String(req.user.id)) {
+        throw new AppError('Applicants cannot review their own registration', 403, 'SELF_REVIEW_FORBIDDEN');
+      }
       if (!['submitted', 'under_review'].includes(registration.status)) {
         throw new AppError('Registration has already been reviewed', 409, 'REGISTRATION_CLOSED');
       }
@@ -451,6 +458,9 @@ router.post(
     const result = await LandParcel.sequelize.transaction(async (transaction) => {
       const transfer = await Transfer.findByPk(parseId(req.params.id), { transaction, lock: transaction.LOCK.UPDATE });
       if (!transfer) throw new AppError('Transfer not found', 404, 'TRANSFER_NOT_FOUND');
+      if ([transfer.fromOwnerId, transfer.toOwnerId, transfer.initiatedBy].some((id) => String(id) === String(req.user.id))) {
+        throw new AppError('Transfer participants cannot review their own transfer', 403, 'SELF_REVIEW_FORBIDDEN');
+      }
       if (transfer.status !== 'pending') throw new AppError('Transfer has already been reviewed', 409, 'TRANSFER_CLOSED');
       transfer.status = decision === 'approve' ? 'approved' : 'rejected';
       transfer.reviewedBy = req.user.id;

@@ -1,19 +1,26 @@
 import { Sequelize } from 'sequelize';
 import env from './environment.js';
 
-export const sequelize = new Sequelize(env.db.name, env.db.user, env.db.password, {
+const connection = env.db.url || {
+  database: env.db.name,
+  username: env.db.user,
+  password: env.db.password,
   host: env.db.host,
   port: env.db.port,
-  dialect: 'mysql',
+};
+
+export const sequelize = new Sequelize(connection, {
+  dialect: 'postgres',
   logging: env.db.logging ? (sql) => console.log(`[sql] ${sql}`) : false,
   pool: env.db.pool,
   timezone: '+00:00', // store everything in UTC
-  dialectOptions: { connectTimeout: 10000 },
+  dialectOptions: {
+    ...(env.db.url ? { ssl: { require: true, rejectUnauthorized: true } } : {}),
+    connectionTimeoutMillis: 10000,
+  },
   define: {
     underscored: true,
     timestamps: true,
-    charset: 'utf8mb4',
-    collate: 'utf8mb4_unicode_ci',
   },
 });
 
@@ -35,7 +42,7 @@ export async function connectWithRetry(
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     const result = await testConnection();
     if (result.ok) {
-      console.log(`[db] Connected to MySQL at ${env.db.host}:${env.db.port}/${env.db.name}`);
+      console.log(`[db] Connected to PostgreSQL${env.db.url ? ' using DATABASE_URL' : ` at ${env.db.host}:${env.db.port}/${env.db.name}`}`);
       return true;
     }
     console.error(`[db] Connection attempt ${attempt}/${retries} failed: ${result.error}`);

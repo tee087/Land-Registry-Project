@@ -38,14 +38,14 @@ export function AuthProvider({ children }) {
     setError('Your session has expired. Please sign in again.');
   }), []);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email, password, mfaCode) => {
     setError(null);
     setSessionExpired(false);
     try {
-      const { data } = await api.login({ email, password });
+      const { data } = await api.login({ email, password, ...(mfaCode ? { mfaCode } : {}) });
       tokenStore.set(data);
       setUser(data.user);
-      return data.user;
+      return data;
     } catch (err) {
       setError(err.message);
       throw err;
@@ -57,9 +57,11 @@ export function AuthProvider({ children }) {
     setSessionExpired(false);
     try {
       const { data } = await api.register(input);
-      tokenStore.set(data);
-      setUser(data.user);
-      return data.user;
+      if (data.accessToken) {
+        tokenStore.set(data);
+        setUser(data.user);
+      }
+      return data;
     } catch (err) {
       setError(err.message);
       throw err;

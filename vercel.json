@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "land-registry-backend": {
+      "root": "land-registry-backend",
+      "framework": "express"
+    },
+    "land-registry-frotend": {
+      "root": "land-registry-frotend",
+      "framework": "vite"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": { "service": "land-registry-backend" }
+    },
+    {
+      "source": "/(.*)",
+      "destination": { "service": "land-registry-frotend" }
+    }
+  ]
+}

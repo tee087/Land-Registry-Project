@@ -3,8 +3,8 @@ import { sequelize } from '../config/database.js';
 import User from './User.js';
 
 const RefreshToken = sequelize.define('RefreshToken', {
-  id: { type: DataTypes.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true },
-  userId: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false, field: 'user_id' },
+  id: { type: DataTypes.BIGINT, autoIncrement: true, primaryKey: true },
+  userId: { type: DataTypes.BIGINT, allowNull: false, field: 'user_id' },
   tokenHash: { type: DataTypes.CHAR(64), allowNull: false, unique: true, field: 'token_hash' },
   expiresAt: { type: DataTypes.DATE, allowNull: false, field: 'expires_at' },
   revokedAt: { type: DataTypes.DATE, allowNull: true, field: 'revoked_at' },

@@ -14,6 +14,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedServiceCat, setSelectedServiceCat] = useState('registration');
   const [account, setAccount] = useState(null);
+  const [authLinkNotice, setAuthLinkNotice] = useState('');
 
   const { user, loading, logout, refreshUser, sessionExpired } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
@@ -31,6 +32,19 @@ export default function App() {
   const [chainVerifying, setChainVerifying] = useState(false);
   const [chainError, setChainError] = useState(null);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const token = params.get('token');
+    if (window.location.pathname === '/reset-password') {
+      setShowAuth(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (window.location.pathname === '/verify-email' && token) {
+      api.verifyEmail(token).then(() => setAuthLinkNotice('Email verified. You can sign in now.')).catch((error) => setAuthLinkNotice(error.message));
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
   // GIS / forensic data loaded from the registry API
   const [gisParcels, setGisParcels] = useState([]);
   const [selectedGISId, setSelectedGISId] = useState(null);
@@ -38,7 +52,7 @@ export default function App() {
   const [registryError, setRegistryError] = useState(null);
   const [evidenceList, setEvidenceList] = useState([]);
 
-  // Official Ardhisasa Departmental Service Catalog
+  // Informational service categories; this application is not connected to Ardhisasa.
   const ardhisasaServiceCategories = {
     registration: {
       title: 'LAND REGISTRATION',
@@ -71,7 +85,7 @@ export default function App() {
       services: ['Recognition of Community Land Rights', 'Customary Rights Registration', 'Settlement Scheme Offer Letters']
     },
     nlc: {
-      title: 'NATIONAL LAND COMMISSION (NLC)',
+      title: 'PUBLIC LAND & COMMISSION SERVICES',
       description: 'Public land administration and compulsory land acquisition management.',
       services: ['Public Land Allocation', 'Compulsory Acquisition Claims', 'Historical Land Injustices Investigation']
     }
@@ -428,6 +442,7 @@ export default function App() {
 
       {/* Main Page Render */}
       <main style={{ paddingBottom: '3rem' }}>
+        {authLinkNotice && <div role="status" style={{ maxWidth: 900, margin: '1rem auto', padding: '0.9rem 1rem', color: '#e2e8f0', background: 'rgba(15,23,42,.95)', border: '1px solid rgba(56,189,248,.4)', borderRadius: 10 }}>{authLinkNotice}</div>}
 
         {sessionExpired && (
           <div style={{ maxWidth: '1100px', margin: '1rem auto 0 auto', padding: '0 1rem' }}>
@@ -541,9 +556,9 @@ export default function App() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '1.5rem', textAlign: 'left' }}>
                 <ShieldCheck size={24} color="#38bdf8" style={{ marginBottom: '10px' }} />
-                <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.1rem', fontWeight: 600 }}>Blockchain-Anchored Records</h3>
+                <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.1rem', fontWeight: 600 }}>Optional Blockchain Anchoring</h3>
                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem', lineHeight: '1.5' }}>
-                  Approved registrations and transfers are recorded on-chain for tamper-evident verification.
+                  Approved changes can be anchored when a blockchain network and worker are configured. The database remains the registry record.
                 </p>
               </div>
               <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '1.5rem', textAlign: 'left' }}>
@@ -582,12 +597,12 @@ export default function App() {
           />
         )}
 
-        {/* PAGE 2: SERVICES PAGE (EXACTLY LIKE ARDHISASA) */}
+        {/* PAGE 2: Informational land services directory */}
         {activeTab === 'services' && (
           <div style={{ maxWidth: '1100px', margin: '2.5rem auto', padding: '0 1rem' }}>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <h2 style={{ color: '#ffffff', fontSize: '2.4rem', fontWeight: '800', textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}>National Land Services Directory</h2>
-              <p style={{ color: '#e2e8f0', fontSize: '1.05rem', textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>A directory of land service categories. Registry actions available in this application are listed in the dashboard; other services are informational.</p>
+              <h2 style={{ color: '#ffffff', fontSize: '2.4rem', fontWeight: '800', textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}>Land Services Information</h2>
+              <p style={{ color: '#e2e8f0', fontSize: '1.05rem', textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>Independent project; not affiliated with or connected to Ardhisasa, the Ministry of Lands, or the National Land Commission. Only actions shown in the dashboard are implemented here.</p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>

@@ -6,7 +6,7 @@ const timestamps = (Sequelize) => ({
 });
 
 const userRef = (Sequelize, { nullable = false, onDelete = 'SET NULL' } = {}) => ({
-  type: Sequelize.BIGINT.UNSIGNED,
+  type: Sequelize.BIGINT,
   allowNull: nullable,
   references: { model: 'users', key: 'id' },
   onUpdate: 'CASCADE',
@@ -16,7 +16,7 @@ const userRef = (Sequelize, { nullable = false, onDelete = 'SET NULL' } = {}) =>
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('land_parcels', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       parcel_number: { type: Sequelize.STRING(80), allowNull: false, unique: true },
       county: { type: Sequelize.STRING(80), allowNull: false },
       block: { type: Sequelize.STRING(80), allowNull: true },
@@ -34,9 +34,9 @@ module.exports = {
     });
 
     await queryInterface.createTable('ownerships', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       parcel_id: {
-        type: Sequelize.BIGINT.UNSIGNED, allowNull: false,
+        type: Sequelize.BIGINT, allowNull: false,
         references: { model: 'land_parcels', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE',
       },
       owner_id: userRef(Sequelize, { onDelete: 'CASCADE' }),
@@ -51,9 +51,9 @@ module.exports = {
     await queryInterface.addIndex('ownerships', ['is_current']);
 
     await queryInterface.createTable('registrations', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       parcel_id: {
-        type: Sequelize.BIGINT.UNSIGNED, allowNull: false,
+        type: Sequelize.BIGINT, allowNull: false,
         references: { model: 'land_parcels', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE',
       },
       applicant_id: userRef(Sequelize, { onDelete: 'CASCADE' }),
@@ -72,9 +72,9 @@ module.exports = {
     await queryInterface.addIndex('registrations', ['status']);
 
     await queryInterface.createTable('transfers', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       parcel_id: {
-        type: Sequelize.BIGINT.UNSIGNED, allowNull: false,
+        type: Sequelize.BIGINT, allowNull: false,
         references: { model: 'land_parcels', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE',
       },
       from_owner_id: userRef(Sequelize, { onDelete: 'CASCADE' }),
@@ -94,18 +94,18 @@ module.exports = {
     await queryInterface.addIndex('transfers', ['status']);
 
     await queryInterface.createTable('documents', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       parcel_id: {
-        type: Sequelize.BIGINT.UNSIGNED, allowNull: true,
+        type: Sequelize.BIGINT, allowNull: true,
         references: { model: 'land_parcels', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'SET NULL',
       },
       uploaded_by: userRef(Sequelize, { nullable: true }),
       original_name: { type: Sequelize.STRING(255), allowNull: false },
       storage_key: { type: Sequelize.STRING(255), allowNull: false },
       mime_type: { type: Sequelize.STRING(120), allowNull: false },
-      size_bytes: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+      size_bytes: { type: Sequelize.BIGINT, allowNull: false },
       sha256: { type: Sequelize.CHAR(64), allowNull: false },
-      version: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, defaultValue: 1 },
+      version: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 1 },
       is_current: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: true },
       ...timestamps(Sequelize),
     });
@@ -113,11 +113,11 @@ module.exports = {
     await queryInterface.addIndex('documents', ['sha256']);
 
     await queryInterface.createTable('audit_logs', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       actor_id: userRef(Sequelize, { nullable: true }),
       action: { type: Sequelize.STRING(80), allowNull: false },
       entity_type: { type: Sequelize.STRING(60), allowNull: false },
-      entity_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: true },
+      entity_id: { type: Sequelize.BIGINT, allowNull: true },
       request_id: { type: Sequelize.STRING(64), allowNull: true },
       ip: { type: Sequelize.STRING(64), allowNull: true },
       metadata: { type: Sequelize.JSON, allowNull: true },
@@ -128,7 +128,7 @@ module.exports = {
     await queryInterface.addIndex('audit_logs', ['created_at']);
 
     await queryInterface.createTable('notifications', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       user_id: userRef(Sequelize, { onDelete: 'CASCADE' }),
       type: { type: Sequelize.STRING(60), allowNull: false },
       title: { type: Sequelize.STRING(160), allowNull: false },
@@ -139,9 +139,9 @@ module.exports = {
     await queryInterface.addIndex('notifications', ['user_id', 'read_at']);
 
     await queryInterface.createTable('evidence', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       parcel_id: {
-        type: Sequelize.BIGINT.UNSIGNED, allowNull: true,
+        type: Sequelize.BIGINT, allowNull: true,
         references: { model: 'land_parcels', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'SET NULL',
       },
       custody_ref: { type: Sequelize.STRING(80), allowNull: false, unique: true },
@@ -157,9 +157,9 @@ module.exports = {
     await queryInterface.addIndex('evidence', ['parcel_id']);
 
     await queryInterface.createTable('evidence_custody', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       evidence_id: {
-        type: Sequelize.BIGINT.UNSIGNED, allowNull: false,
+        type: Sequelize.BIGINT, allowNull: false,
         references: { model: 'evidence', key: 'id' }, onUpdate: 'CASCADE', onDelete: 'CASCADE',
       },
       actor_id: userRef(Sequelize, { nullable: true }),
@@ -170,9 +170,9 @@ module.exports = {
     await queryInterface.addIndex('evidence_custody', ['evidence_id']);
 
     await queryInterface.createTable('blockchain_transactions', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       entity_type: { type: Sequelize.STRING(60), allowNull: false },
-      entity_id: { type: Sequelize.BIGINT.UNSIGNED, allowNull: false },
+      entity_id: { type: Sequelize.BIGINT, allowNull: false },
       action: { type: Sequelize.STRING(60), allowNull: false },
       status: {
         type: Sequelize.ENUM('pending', 'submitted', 'confirmed', 'failed'),
@@ -180,7 +180,7 @@ module.exports = {
         defaultValue: 'pending',
       },
       tx_hash: { type: Sequelize.STRING(66), allowNull: true },
-      attempts: { type: Sequelize.INTEGER.UNSIGNED, allowNull: false, defaultValue: 0 },
+      attempts: { type: Sequelize.INTEGER, allowNull: false, defaultValue: 0 },
       last_error: { type: Sequelize.TEXT, allowNull: true },
       payload: { type: Sequelize.JSON, allowNull: true },
       ...timestamps(Sequelize),

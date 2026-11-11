@@ -4,15 +4,6 @@ import { api } from '../../api/client.js';
 import { Badge, Button, Card, EmptyState, Field, Notice, Spinner, Table, formatDate, inputStyle, shortHash } from '../ui.jsx';
 import { useResource } from './useResource.js';
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Unable to read the selected file.'));
-    reader.readAsDataURL(file);
-  });
-}
-
 function formatBytes(value) {
   const bytes = Number(value || 0);
   if (!bytes) return '—';
@@ -77,19 +68,10 @@ export default function DocumentsPanel({ user }) {
     setError(null);
     setNotice(null);
     try {
-      const contentBase64 = await fileToBase64(file);
       if (targetType === 'registration') {
-        await api.uploadDocumentToRegistration(targetId, {
-          originalName: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          contentBase64,
-        });
+        await api.uploadDocumentToRegistration(targetId, file);
       } else {
-        await api.uploadDocument(targetId, {
-          originalName: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          contentBase64,
-        });
+        await api.uploadDocument(targetId, file);
       }
       setFile(null);
       event.target.reset();
@@ -115,7 +97,8 @@ export default function DocumentsPanel({ user }) {
   const download = async (id) => {
     setError(null);
     try {
-      const result = await api.downloadDocument(id);
+      const document = documents.find((row) => String(row.id) === String(id));
+      const result = await api.downloadDocument(id, document?.originalName);
       const url = URL.createObjectURL(result.blob);
       const link = document.createElement('a');
       link.href = url;
@@ -183,7 +166,7 @@ export default function DocumentsPanel({ user }) {
         {targetId && canUpload && (
           <form onSubmit={upload} style={{ marginTop: '1rem', background: 'rgba(2,6,23,0.5)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1rem', display: 'flex', gap: '0.8rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <Field label="New document version" hint="Maximum 10 MB. Uploading a file with the same name creates a new version." style={{ flex: '1 1 260px' }}>
-              <input style={inputStyle} type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+              <input style={inputStyle} type="file" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,application/pdf,image/jpeg,image/png,image/tiff" onChange={(event) => setFile(event.target.files?.[0] || null)} />
             </Field>
             <Button type="submit" disabled={busy || !file}>{busy ? 'Uploading…' : <><FileUp size={14} /> Upload</>}</Button>
           </form>

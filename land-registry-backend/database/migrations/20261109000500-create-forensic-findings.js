@@ -8,16 +8,16 @@ const timestamps = (Sequelize) => ({
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('forensic_findings', {
-      id: { type: Sequelize.BIGINT.UNSIGNED, autoIncrement: true, primaryKey: true, allowNull: false },
+      id: { type: Sequelize.BIGINT, autoIncrement: true, primaryKey: true, allowNull: false },
       evidence_id: {
-        type: Sequelize.BIGINT.UNSIGNED,
+        type: Sequelize.BIGINT,
         allowNull: true,
         references: { model: 'evidence', key: 'id' },
         onUpdate: 'CASCADE',
         onDelete: 'SET NULL',
       },
       parcel_id: {
-        type: Sequelize.BIGINT.UNSIGNED,
+        type: Sequelize.BIGINT,
         allowNull: true,
         references: { model: 'land_parcels', key: 'id' },
         onUpdate: 'CASCADE',
@@ -34,7 +34,7 @@ module.exports = {
       },
       status: { type: Sequelize.ENUM('open', 'closed'), allowNull: false, defaultValue: 'open' },
       recorded_by: {
-        type: Sequelize.BIGINT.UNSIGNED,
+        type: Sequelize.BIGINT,
         allowNull: false,
         references: { model: 'users', key: 'id' },
         onUpdate: 'CASCADE',

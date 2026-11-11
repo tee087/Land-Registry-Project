@@ -6,6 +6,20 @@ export const login = async (req, res) => sendSuccess(res, { data: await service.
 export const refresh = async (req, res) => sendSuccess(res, { data: await service.refresh(req.body.refreshToken), message: 'Token refreshed' });
 export const logout = async (req, res) => { await service.logout(req.body?.refreshToken); return sendSuccess(res, { message: 'Logged out' }); };
 export const me = async (req, res) => sendSuccess(res, { data: service.publicUser(req.user), message: 'Current user' });
+export const verifyEmail = async (req, res) => sendSuccess(res, { data: await service.verifyEmail(req.body.token), message: 'Email verified. You can now sign in.' });
+export const requestEmailVerification = async (req, res) => sendSuccess(res, { data: await service.requestEmailVerification(req.body.email), message: 'If verification is needed for that account, a link will be sent.' });
+export const requestPasswordReset = async (req, res) => sendSuccess(res, { data: await service.requestPasswordReset(req.body.email), message: 'If an active account matches that address, a reset link will be sent.' });
+export const resetPassword = async (req, res) => sendSuccess(res, { data: await service.resetPassword(req.body.token, req.body.password), message: 'Password reset. Sign in with your new password.' });
+export const setupMfa = async (req, res) => {
+  const data = await service.setupMfa(req.user.id, req.body.password);
+  await recordAudit(req, { action: 'user.mfa.setup', entityType: 'user', entityId: req.user.id });
+  return sendSuccess(res, { data, message: 'Scan or manually enter this authenticator secret, then confirm a code.' });
+};
+export const enableMfa = async (req, res) => {
+  const data = await service.enableMfa(req.user.id, req.body.code);
+  await recordAudit(req, { action: 'user.mfa.enabled', entityType: 'user', entityId: req.user.id });
+  return sendSuccess(res, { data, message: 'Multi-factor authentication enabled.' });
+};
 export const changePassword = async (req, res) => {
   await service.changePassword(req.user.id, req.body);
   await recordAudit(req, { action: 'user.password.change', entityType: 'user', entityId: req.user.id });

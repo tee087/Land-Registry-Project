@@ -1,6 +1,4 @@
 import crypto from 'node:crypto';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { Router } from 'express';
 
 import { authenticate } from '../../middleware/authenticate.js';
@@ -9,11 +7,19 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { AppError, sendSuccess } from '../../utils/responseHandler.js';
 import { Ownership, Document, Registration } from '../../models/index.js';
 import { recordAudit } from '../../services/audit.service.js';
+import env from '../../config/environment.js';
+import {
+  createDocumentUploadUrl,
+  createDocumentDownloadUrl,
+  documentStorageDriver,
+  getDocument,
+  putDocument,
+  verifyUploadedDocument,
+} from '../../services/document-storage.service.js';
 
 const router = Router();
 router.use(['/parcels', '/documents', '/registrations'], authenticate);
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.resolve('uploads');
 const MAX_BYTES = 10 * 1024 * 1024;
 
 const hasPermission = (user, permission) => {
@@ -50,15 +56,131 @@ function decodeContent(contentBase64) {
   return buffer;
 }
 
-const safeExtension = (name) => {
-  const ext = path.extname(String(name || '')).toLowerCase();
-  return /^\.[a-z0-9]{1,10}$/.test(ext) ? ext : '.bin';
-};
+const newStorageKey = () => crypto.randomUUID();
+
+router.post(
+  '/parcels/:id/documents/upload-url',
+  authorize('document:create'),
+  asyncHandler(async (req, res) => {
+    const parcelId = parseId(req.params.id, 'parcel id');
+    if (!(await isOwner(req.user.id, parcelId))) {
+      throw new AppError('You can only upload documents for parcels you own', 403, 'FORBIDDEN');
+    }
+    return createUploadUrl(req, res, { ...req.body, resourceType: 'parcels', resourceId: parcelId });
+  })
+);
+
+router.post(
+  '/registrations/:id/documents/upload-url',
+  authorize('document:create'),
+  asyncHandler(async (req, res) => {
+    const registrationId = parseId(req.params.id, 'registration id');
+    const registration = await Registration.findByPk(registrationId);
+    if (!registration) throw new AppError('Registration not found', 404, 'REGISTRATION_NOT_FOUND');
+    if (registration.applicantId !== req.user.id) {
+      throw new AppError('You can only upload documents for your own registration applications', 403, 'FORBIDDEN');
+    }
+    return createUploadUrl(req, res, { ...req.body, resourceType: 'registrations', resourceId: registrationId });
+  })
+);
+
+router.post(
+  '/parcels/:id/documents/complete',
+  authorize('document:create'),
+  asyncHandler(async (req, res) => {
+    const parcelId = parseId(req.params.id, 'parcel id');
+    if (!(await isOwner(req.user.id, parcelId))) {
+      throw new AppError('You can only upload documents for parcels you own', 403, 'FORBIDDEN');
+    }
+    return finalizeDirectUpload(req, res, { ...req.body, resourceType: 'parcels', resourceId: parcelId });
+  })
+);
+
+router.post(
+  '/registrations/:id/documents/complete',
+  authorize('document:create'),
+  asyncHandler(async (req, res) => {
+    const registrationId = parseId(req.params.id, 'registration id');
+    const registration = await Registration.findByPk(registrationId);
+    if (!registration) throw new AppError('Registration not found', 404, 'REGISTRATION_NOT_FOUND');
+    if (registration.applicantId !== req.user.id) {
+      throw new AppError('You can only upload documents for your own registration applications', 403, 'FORBIDDEN');
+    }
+    return finalizeDirectUpload(req, res, { ...req.body, resourceType: 'registrations', resourceId: registrationId });
+  })
+);
+
+function validateUploadMetadata({ originalName, mimeType, sizeBytes, sha256 }) {
+  if (typeof originalName !== 'string' || !originalName.trim() || originalName.length > 255 || /[\u0000-\u001f]/.test(originalName)) {
+    throw new AppError('A valid originalName (maximum 255 characters) is required', 422, 'VALIDATION_ERROR');
+  }
+  if (!['application/pdf', 'image/jpeg', 'image/png', 'image/tiff'].includes(mimeType)) {
+    throw new AppError('Only PDF, JPEG, PNG, and TIFF documents are accepted', 422, 'UNSUPPORTED_DOCUMENT_TYPE');
+  }
+  if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > MAX_BYTES) {
+    throw new AppError('Document size must be between 1 byte and 10MB', 413, 'PAYLOAD_TOO_LARGE');
+  }
+  if (typeof sha256 !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(sha256) || Buffer.from(sha256, 'base64').length !== 32) {
+    throw new AppError('A valid base64 SHA-256 digest is required', 422, 'VALIDATION_ERROR');
+  }
+}
+
+async function createUploadUrl(req, res, { resourceType, resourceId, originalName, mimeType, sizeBytes, sha256 }) {
+  validateUploadMetadata({ originalName, mimeType, sizeBytes, sha256 });
+  if (documentStorageDriver !== 's3') {
+    throw new AppError('Direct uploads require configured S3-compatible storage', 503, 'DIRECT_UPLOAD_UNAVAILABLE');
+  }
+  const storageKey = `land-registry/${req.user.id}/${resourceType}/${resourceId}/${newStorageKey()}`;
+  const signed = await createDocumentUploadUrl(storageKey, mimeType, sha256);
+  return sendSuccess(res, {
+    data: { storageKey, uploadUrl: signed.url, headers: signed.headers, expiresIn: 300 },
+    message: 'Upload URL created',
+  });
+}
+
+async function finalizeDirectUpload(req, res, { resourceType, resourceId, storageKey, originalName, mimeType, sizeBytes, sha256 }) {
+  validateUploadMetadata({ originalName, mimeType, sizeBytes, sha256 });
+  const expectedPrefix = `land-registry/${req.user.id}/${resourceType}/${resourceId}/`;
+  if (typeof storageKey !== 'string' || !storageKey.startsWith(expectedPrefix) || !/^[\w/-]+$/.test(storageKey)) {
+    throw new AppError('Invalid document storage key', 422, 'VALIDATION_ERROR');
+  }
+  const stored = await verifyUploadedDocument(storageKey);
+  if (!stored || stored.ContentLength !== sizeBytes || stored.ContentType !== mimeType || stored.ChecksumSHA256 !== sha256) {
+    throw new AppError('Uploaded document metadata or checksum did not match', 422, 'UPLOAD_VERIFICATION_FAILED');
+  }
+
+  const existing = await Document.findOne({ where: { storageKey } });
+  if (existing) return sendSuccess(res, { data: existing, message: 'Document already recorded' });
+
+  const scope = resourceType === 'parcels' ? { parcelId: resourceId } : { registrationId: resourceId };
+  const previous = await Document.findOne({ where: { ...scope, originalName }, order: [['version', 'DESC']] });
+  const version = previous ? previous.version + 1 : 1;
+  await Document.update({ isCurrent: false }, { where: { ...scope, originalName, isCurrent: true } });
+  const document = await Document.create({
+    ...scope,
+    uploadedBy: req.user.id,
+    originalName,
+    storageKey,
+    mimeType,
+    sizeBytes,
+    sha256: crypto.createHash('sha256').update(Buffer.from(sha256, 'base64')).digest('hex'),
+    version,
+    isCurrent: true,
+  });
+  await recordAudit(req, {
+    action: 'document.upload',
+    entityType: 'document',
+    entityId: document.id,
+    metadata: { ...scope, sha256: document.sha256, version },
+  });
+  return sendSuccess(res, { data: document, statusCode: 201, message: 'Document uploaded' });
+}
 
 router.post(
   '/parcels/:id/documents',
   authorize('document:create'),
   asyncHandler(async (req, res) => {
+    if (env.isProduction) throw new AppError('Use the signed direct-upload flow', 410, 'DIRECT_UPLOAD_REQUIRED');
     const parcelId = parseId(req.params.id);
     if (!(await isOwner(req.user.id, parcelId))) {
       throw new AppError('You can only upload documents for parcels you own', 403, 'FORBIDDEN');
@@ -68,9 +190,8 @@ router.post(
     const buffer = decodeContent(contentBase64);
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    const storageKey = `${crypto.randomUUID()}${safeExtension(originalName)}`;
-    await fs.writeFile(path.join(UPLOAD_DIR, storageKey), buffer);
+    const storageKey = newStorageKey();
+    await putDocument(storageKey, buffer, String(mimeType));
 
     const previous = await Document.findOne({
       where: { parcelId, originalName: String(originalName) },
@@ -108,6 +229,7 @@ router.post(
   '/registrations/:id/documents',
   authorize('document:create'),
   asyncHandler(async (req, res) => {
+    if (env.isProduction) throw new AppError('Use the signed direct-upload flow', 410, 'DIRECT_UPLOAD_REQUIRED');
     const registrationId = parseId(req.params.id);
     const registration = await Registration.findByPk(registrationId);
     if (!registration) throw new AppError('Registration not found', 404, 'REGISTRATION_NOT_FOUND');
@@ -119,9 +241,8 @@ router.post(
     const buffer = decodeContent(contentBase64);
     const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
 
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    const storageKey = `${crypto.randomUUID()}${safeExtension(originalName)}`;
-    await fs.writeFile(path.join(UPLOAD_DIR, storageKey), buffer);
+    const storageKey = newStorageKey();
+    await putDocument(storageKey, buffer, String(mimeType));
 
     const previous = await Document.findOne({
       where: { registrationId, originalName: String(originalName) },
@@ -152,6 +273,21 @@ router.post(
       metadata: { registrationId, sha256, version },
     });
     return sendSuccess(res, { data: document, statusCode: 201, message: 'Document uploaded' });
+  })
+);
+
+router.get(
+  '/documents/:id/download-url',
+  asyncHandler(async (req, res) => {
+    const document = await Document.findByPk(parseId(req.params.id));
+    if (!document) throw new AppError('Document not found', 404, 'DOCUMENT_NOT_FOUND');
+    await assertDocumentAccess(req.user, document);
+    if (documentStorageDriver !== 's3') {
+      throw new AppError('Direct downloads require configured S3-compatible storage', 503, 'DIRECT_DOWNLOAD_UNAVAILABLE');
+    }
+    const downloadUrl = await createDocumentDownloadUrl(document.storageKey, document.mimeType, document.originalName);
+    await recordAudit(req, { action: 'document.download', entityType: 'document', entityId: document.id });
+    return sendSuccess(res, { data: { downloadUrl, expiresIn: 60 }, message: 'Download URL created' });
   })
 );
 
@@ -210,7 +346,8 @@ router.post(
     await assertDocumentAccess(req.user, document);
     let actual;
     try {
-      const buffer = await fs.readFile(path.join(UPLOAD_DIR, document.storageKey));
+      const buffer = await getDocument(document.storageKey);
+      if (!buffer) throw new Error('Stored document file is missing');
       actual = crypto.createHash('sha256').update(buffer).digest('hex');
     } catch {
       throw new AppError('Stored document file is missing', 404, 'FILE_MISSING');
@@ -235,16 +372,13 @@ router.get(
     const document = await Document.findByPk(parseId(req.params.id));
     if (!document) throw new AppError('Document not found', 404, 'DOCUMENT_NOT_FOUND');
     await assertDocumentAccess(req.user, document);
-    const filePath = path.join(UPLOAD_DIR, document.storageKey);
-    try {
-      await fs.access(filePath);
-    } catch {
-      throw new AppError('Stored document file is missing', 404, 'FILE_MISSING');
-    }
+    const buffer = await getDocument(document.storageKey);
+    if (!buffer) throw new AppError('Stored document file is missing', 404, 'FILE_MISSING');
     await recordAudit(req, { action: 'document.download', entityType: 'document', entityId: document.id });
     res.setHeader('Content-Type', document.mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(document.originalName)}"`);
-    return res.sendFile(filePath);
+    res.setHeader('Content-Length', buffer.length);
+    return res.send(buffer);
   })
 );
 
