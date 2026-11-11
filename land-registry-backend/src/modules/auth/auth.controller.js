@@ -6,8 +6,13 @@ export const login = async (req, res) => sendSuccess(res, { data: await service.
 export const refresh = async (req, res) => sendSuccess(res, { data: await service.refresh(req.body.refreshToken), message: 'Token refreshed' });
 export const logout = async (req, res) => { await service.logout(req.body?.refreshToken); return sendSuccess(res, { message: 'Logged out' }); };
 export const me = async (req, res) => sendSuccess(res, { data: service.publicUser(req.user), message: 'Current user' });
-export const verifyEmail = async (req, res) => sendSuccess(res, { data: await service.verifyEmail(req.body.token), message: 'Email verified. You can now sign in.' });
-export const requestEmailVerification = async (req, res) => sendSuccess(res, { data: await service.requestEmailVerification(req.body.email), message: 'If verification is needed for that account, a link will be sent.' });
+export const verifyEmail = async (req, res) => sendSuccess(res, {
+  data: req.body.code
+    ? await service.verifyEmailCode(req.body.email, req.body.code)
+    : await service.verifyEmail(req.body.token),
+  message: 'Email verified. You can now sign in.',
+});
+export const requestEmailVerification = async (req, res) => sendSuccess(res, { data: await service.requestEmailVerification(req.body.email), message: 'If verification is needed for that account, a code will be sent.' });
 export const requestPasswordReset = async (req, res) => sendSuccess(res, { data: await service.requestPasswordReset(req.body.email), message: 'If an active account matches that address, a reset link will be sent.' });
 export const resetPassword = async (req, res) => sendSuccess(res, { data: await service.resetPassword(req.body.token, req.body.password), message: 'Password reset. Sign in with your new password.' });
 export const setupMfa = async (req, res) => {

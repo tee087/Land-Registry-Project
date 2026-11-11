@@ -201,6 +201,7 @@ export const api = {
   register: (input) => request('/auth/register', { method: 'POST', body: input }),
   login: (input) => request('/auth/login', { method: 'POST', body: input }),
   verifyEmail: (token) => request('/auth/verify-email', { method: 'POST', body: { token } }),
+  verifyEmailCode: (email, code) => request('/auth/verify-email', { method: 'POST', body: { email, code } }),
   requestEmailVerification: (email) => request('/auth/email-verification/request', { method: 'POST', body: { email } }),
   requestPasswordReset: (email) => request('/auth/password-reset/request', { method: 'POST', body: { email } }),
   resetPassword: (token, password) => request('/auth/password-reset/confirm', { method: 'POST', body: { token, password } }),

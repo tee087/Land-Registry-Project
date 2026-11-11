@@ -15,6 +15,13 @@ export const mfaSetupSchema = z.object({ password: z.string().min(1).max(128) })
 export const mfaCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/) }).strict();
 export const refreshSchema = z.object({ refreshToken: z.string().min(40).max(200) }).strict();
 export const tokenSchema = z.object({ token: z.string().min(32).max(200) }).strict();
+export const emailVerificationSchema = z.union([
+  z.object({
+    email: z.string().trim().email().max(190).transform((value) => value.toLowerCase()),
+    code: z.string().regex(/^\d{6}$/),
+  }).strict(),
+  tokenSchema,
+]);
 export const resetPasswordSchema = z.object({ token: z.string().min(32).max(200), password }).strict();
 export const passwordResetRequestSchema = z.object({ email: z.string().trim().email().max(190).transform((v) => v.toLowerCase()) }).strict();
 export const updateProfileSchema = z.object({

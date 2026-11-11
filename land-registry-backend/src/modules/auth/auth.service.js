@@ -79,20 +79,26 @@ export async function enableMfa(userId, code) {
   return { enabled: true };
 }
 export async function issueAuthLink(user, purpose) {
-  const token = crypto.randomBytes(32).toString('base64url');
+  const token = purpose === 'email_verification'
+    ? String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+    : crypto.randomBytes(32).toString('base64url');
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+  const tokenHash = purpose === 'email_verification'
+    ? hashToken(`${user.id}:${token}:${expiresAt.toISOString()}`)
+    : hashToken(token);
   const issued = await User.sequelize.transaction(async (transaction) => {
     await User.unscoped().findByPk(user.id, { transaction, lock: transaction.LOCK.UPDATE });
     const recent = await AuthToken.findOne({ where: { userId: user.id, purpose, createdAt: { [Op.gt]: new Date(Date.now() - 60_000) } }, transaction });
     if (recent) return false;
     await AuthToken.update({ usedAt: new Date() }, { where: { userId: user.id, purpose, usedAt: null }, transaction });
-    await AuthToken.create({ userId: user.id, tokenHash: hashToken(token), purpose, expiresAt: new Date(Date.now() + 30 * 60 * 1000) }, { transaction });
+    await AuthToken.create({ userId: user.id, tokenHash, purpose, expiresAt }, { transaction });
     return true;
   });
   if (!issued) return false;
   setImmediate(() => {
     void sendAuthLink({ to: user.email, token, purpose }).catch(async () => {
       try {
-        await AuthToken.update({ usedAt: new Date() }, { where: { tokenHash: hashToken(token), usedAt: null } });
+        await AuthToken.update({ usedAt: new Date() }, { where: { tokenHash, usedAt: null } });
       } catch {
         console.error(`[auth] failed to invalidate undelivered token for purpose=${purpose}`);
       }
@@ -114,6 +120,42 @@ export async function verifyEmail(rawToken) {
     return { verified: true };
   });
 }
+export async function verifyEmailCode(rawEmail, code) {
+  return User.sequelize.transaction(async (transaction) => {
+    const user = await User.unscoped().findOne({
+      where: { email: rawEmail.toLowerCase() },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!user) throw new AppError('Verification code is invalid or expired', 400, 'INVALID_AUTH_LINK');
+
+    const candidate = await AuthToken.findOne({
+      where: {
+        userId: user.id,
+        purpose: 'email_verification',
+        usedAt: null,
+        expiresAt: { [Op.gt]: new Date() },
+      },
+      order: [['createdAt', 'DESC']],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    const expectedHash = candidate
+      ? hashToken(`${user.id}:${code}:${candidate.expiresAt.toISOString()}`)
+      : null;
+    if (!candidate || candidate.tokenHash !== expectedHash) {
+      throw new AppError('Verification code is invalid or expired', 400, 'INVALID_AUTH_LINK');
+    }
+
+    candidate.usedAt = new Date();
+    await candidate.save({ transaction });
+    user.emailVerifiedAt = new Date();
+    user.status = 'active';
+    await user.save({ transaction });
+    return { verified: true };
+  });
+}
+
 export async function requestEmailVerification(email) {
   const user = await User.unscoped().findOne({ where: { email: email.toLowerCase() } });
   if (env.email.required && user && !user.emailVerifiedAt && ['pending', 'active'].includes(user.status)) await issueAuthLink(user, 'email_verification');

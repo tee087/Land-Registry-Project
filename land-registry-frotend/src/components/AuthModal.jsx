@@ -36,6 +36,7 @@ export default function AuthModal({ open, onClose }) {
     password: '',
     confirmPassword: '',
     mfaCode: '',
+    emailCode: '',
   });
   const [mfaSetup, setMfaSetup] = useState(null);
 
@@ -86,6 +87,11 @@ export default function AuthModal({ open, onClose }) {
         setNotice('Password reset. You can now sign in.');
         setMode('login');
         window.history.replaceState({}, '', '/');
+      } else if (mode === 'verify') {
+        await api.verifyEmailCode(form.email, form.emailCode);
+        setNotice('Email verified. You can sign in now.');
+        setForm((prev) => ({ ...prev, password: '', emailCode: '' }));
+        setMode('login');
       } else if (mode === 'register') {
         if (form.password !== form.confirmPassword) {
           throw new Error('Passwords do not match');
@@ -98,7 +104,8 @@ export default function AuthModal({ open, onClose }) {
         if (form.phone.trim()) payload.phone = form.phone.trim();
         const result = await register(payload);
         if (result.verificationRequired) {
-          setNotice('Account created. Check your email for a verification link before signing in.');
+          setNotice('Account created. Enter the six-digit code sent to your email.');
+          setMode('verify');
           return;
         }
         onClose();
@@ -132,7 +139,7 @@ export default function AuthModal({ open, onClose }) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
+        aria-label={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
         onClick={(event) => event.stopPropagation()}
         style={{
           width: '100%',
@@ -146,7 +153,7 @@ export default function AuthModal({ open, onClose }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#fff' }}>
-            {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
+            {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify your email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
           </h2>
           <button
             onClick={onClose}
@@ -231,6 +238,7 @@ export default function AuthModal({ open, onClose }) {
           </div>}
 
           {mode === 'reset' && <div><label style={labelStyle}>Reset token</label><input style={inputStyle} value={resetToken} onChange={(event) => setResetToken(event.target.value)} required /></div>}
+          {mode === 'verify' && <div><label style={labelStyle}>Six-digit email code</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" maxLength={6} value={form.emailCode} onChange={update('emailCode')} required /></div>}
 
           {mode === 'register' && (
             <div>
@@ -244,7 +252,7 @@ export default function AuthModal({ open, onClose }) {
             </div>
           )}
 
-          {mode !== 'forgot' && mode !== 'mfaSetup' && <div>
+          {mode !== 'forgot' && mode !== 'mfaSetup' && mode !== 'verify' && <div>
             <label style={labelStyle}>Password</label>
             <input
               style={inputStyle}
@@ -297,13 +305,13 @@ export default function AuthModal({ open, onClose }) {
               cursor: busy ? 'not-allowed' : 'pointer',
             }}
           >
-            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : mode === 'forgot' ? 'Send recovery link' : mode === 'reset' ? 'Reset password' : mode === 'mfaSetup' ? (mfaSetup ? 'Enable MFA' : 'Begin MFA setup') : 'Create account'}
+            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Send recovery link' : mode === 'reset' ? 'Reset password' : mode === 'mfaSetup' ? (mfaSetup ? 'Enable MFA' : 'Begin MFA setup') : 'Create account'}
           </button>
         </form>
 
         {notice && <p role="status" style={{ color: '#86efac', fontSize: '0.85rem' }}>{notice}</p>}
         {mode === 'login' && <button type="button" onClick={() => switchMode('forgot')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Forgot password?</button>}
-        {mode === 'login' && <button type="button" onClick={async () => { try { await api.requestEmailVerification(form.email); setNotice('If verification is needed for that account, a link will be sent.'); } catch (requestError) { setError(requestError.message); } }} style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Resend verification email</button>}
+        {(mode === 'login' || mode === 'verify') && <button type="button" onClick={async () => { try { await api.requestEmailVerification(form.email); setNotice('If verification is needed for that account, a code will be sent.'); } catch (requestError) { setError(requestError.message); } }} style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>{mode === 'verify' ? 'Resend code' : 'Resend verification code'}</button>}
         {mode === 'forgot' && <button type="button" onClick={() => switchMode('login')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Return to sign in</button>}
 
         {mode === 'register' && (

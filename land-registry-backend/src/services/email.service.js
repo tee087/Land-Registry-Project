@@ -9,5 +9,8 @@ export async function sendAuthLink({ to, token, purpose }) {
   const verify = purpose === 'email_verification';
   const link = new URL(verify ? '/verify-email' : '/reset-password', env.frontendUrl);
   link.hash = new URLSearchParams({ token }).toString();
-  await transport.sendMail({ from: env.email.from, to, subject: verify ? 'Verify your Land Registry account' : 'Reset your Land Registry password', text: `${verify ? 'Verify your email' : 'Reset your password'} using this one-time link (expires in 30 minutes): ${link.toString()}` });
+  const text = verify
+    ? `Your Land Registry email verification code is ${token}. It expires in 30 minutes.`
+    : `Reset your Land Registry password using this one-time link (expires in 30 minutes): ${link.toString()}`;
+  await transport.sendMail({ from: env.email.from, to, subject: verify ? 'Verify your Land Registry account' : 'Reset your Land Registry password', text });
 }
