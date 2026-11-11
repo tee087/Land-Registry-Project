@@ -23,7 +23,7 @@ function decryptSecret(value) {
   decipher.setAuthTag(Buffer.from(tag, 'hex'));
   return Buffer.concat([decipher.update(Buffer.from(data, 'hex')), decipher.final()]).toString('utf8');
 }
-const publicUser = (user) => ({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, walletAddress: user.walletAddress ?? null, role: user.role, status: user.status, emailVerifiedAt: user.emailVerifiedAt });
+const publicUser = (user) => ({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, accountType: user.accountType, walletAddress: user.walletAddress ?? null, role: user.role, status: user.status, emailVerifiedAt: user.emailVerifiedAt });
 function accessToken(user) {
   return jwt.sign({ role: user.role }, env.auth.accessSecret, { subject: String(user.id), expiresIn: env.auth.accessTtl, issuer: 'land-registry-api', audience: 'land-registry-client' });
 }
@@ -36,20 +36,22 @@ async function issueRefreshToken(user, transaction) {
 export async function register(input) {
   const existing = await User.findOne({ where: { email: input.email } });
   if (existing) {
-    if (env.email.required && existing.status === 'pending') await issueAuthLink(existing, 'email_verification');
-    return { accepted: true, verificationRequired: env.email.required };
+    const emailSent = env.email.required && existing.status === 'pending'
+      ? await issueAuthLink(existing, 'email_verification', { awaitDelivery: true })
+      : false;
+    return { accepted: true, verificationRequired: env.email.required, emailSent };
   }
   const passwordHash = await bcrypt.hash(input.password, env.auth.bcryptRounds);
-  const user = await User.create({ fullName: input.fullName, email: input.email, phone: input.phone || null, passwordHash, role: 'landowner', status: env.email.required ? 'pending' : 'active' });
+  const user = await User.create({ fullName: input.fullName, email: input.email, phone: input.phone, accountType: input.accountType, passwordHash, role: 'landowner', status: env.email.required ? 'pending' : 'active' });
   if (env.email.required) {
-    await issueAuthLink(user, 'email_verification');
-    return { user: publicUser(user), verificationRequired: true };
+    const emailSent = await issueAuthLink(user, 'email_verification', { awaitDelivery: true });
+    return { user: publicUser(user), verificationRequired: true, emailSent };
   }
   const refreshToken = await issueRefreshToken(user);
   return { user: publicUser(user), accessToken: accessToken(user), refreshToken, tokenType: 'Bearer', expiresIn: env.auth.accessTtl };
 }
 export async function login(input) {
-  const user = await User.unscoped().findOne({ where: { email: input.email }, attributes: ['id', 'fullName', 'email', 'phone', 'walletAddress', 'passwordHash', 'role', 'status', 'emailVerifiedAt', 'mfaSecretEncrypted', 'mfaEnabledAt', 'lastLoginAt', 'createdAt', 'updatedAt'] });
+  const user = await User.unscoped().findOne({ where: { email: input.email }, attributes: ['id', 'fullName', 'email', 'phone', 'accountType', 'walletAddress', 'passwordHash', 'role', 'status', 'emailVerifiedAt', 'mfaSecretEncrypted', 'mfaEnabledAt', 'lastLoginAt', 'createdAt', 'updatedAt'] });
   if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) throw new AppError('Invalid email or password', 401, 'INVALID_CREDENTIALS');
   if (user.status !== 'active') throw new AppError('Your account is not active', 403, 'ACCOUNT_NOT_ACTIVE');
   if (env.email.required && !user.emailVerifiedAt) throw new AppError('Verify your email before signing in', 403, 'EMAIL_NOT_VERIFIED');
@@ -78,7 +80,7 @@ export async function enableMfa(userId, code) {
   user.mfaEnabledAt = new Date(); await user.save();
   return { enabled: true };
 }
-export async function issueAuthLink(user, purpose) {
+export async function issueAuthLink(user, purpose, { awaitDelivery = false } = {}) {
   const token = purpose === 'email_verification'
     ? String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
     : crypto.randomBytes(32).toString('base64url');
@@ -95,16 +97,24 @@ export async function issueAuthLink(user, purpose) {
     return true;
   });
   if (!issued) return false;
-  setImmediate(() => {
-    void sendAuthLink({ to: user.email, token, purpose }).catch(async () => {
-      try {
-        await AuthToken.update({ usedAt: new Date() }, { where: { tokenHash, usedAt: null } });
-      } catch {
-        console.error(`[auth] failed to invalidate undelivered token for purpose=${purpose}`);
-      }
-      console.error(`[auth] email delivery failed for purpose=${purpose}`);
+  const invalidateFailedToken = async (error) => {
+    await AuthToken.update({ usedAt: new Date() }, { where: { tokenHash, usedAt: null } });
+    console.error(`[auth] email delivery failed for purpose=${purpose}: ${error.message}`);
+  };
+  if (awaitDelivery) {
+    try {
+      await sendAuthLink({ to: user.email, token, purpose });
+    } catch (error) {
+      await invalidateFailedToken(error);
+      throw new AppError('We could not send the email. Check the mail settings and try again shortly.', 503, 'EMAIL_DELIVERY_FAILED');
+    }
+  } else {
+    setImmediate(() => {
+      void sendAuthLink({ to: user.email, token, purpose }).catch(async (error) => {
+        try { await invalidateFailedToken(error); } catch { console.error(`[auth] failed to invalidate undelivered token for purpose=${purpose}`); }
+      });
     });
-  });
+  }
   return true;
 }
 export async function verifyEmail(rawToken) {
@@ -158,8 +168,10 @@ export async function verifyEmailCode(rawEmail, code) {
 
 export async function requestEmailVerification(email) {
   const user = await User.unscoped().findOne({ where: { email: email.toLowerCase() } });
-  if (env.email.required && user && !user.emailVerifiedAt && ['pending', 'active'].includes(user.status)) await issueAuthLink(user, 'email_verification');
-  return { accepted: true };
+  const emailSent = env.email.required && user && !user.emailVerifiedAt && ['pending', 'active'].includes(user.status)
+    ? await issueAuthLink(user, 'email_verification', { awaitDelivery: true })
+    : false;
+  return { accepted: true, emailSent };
 }
 export async function requestPasswordReset(email) {
   const user = await User.findOne({ where: { email: email.toLowerCase() } });

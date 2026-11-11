@@ -17,7 +17,8 @@ export default function App() {
   const [authLinkNotice, setAuthLinkNotice] = useState('');
 
   const { user, loading, logout, refreshUser, sessionExpired } = useAuth();
-  const [showAuth, setShowAuth] = useState(window.location.pathname === '/reset-password');
+  const [showAuth, setShowAuth] = useState(['/reset-password', '/register', '/login', '/verify-email'].includes(window.location.pathname));
+  const [authMode, setAuthMode] = useState(window.location.pathname === '/register' ? 'register' : window.location.pathname === '/verify-email' ? 'verify' : 'login');
   const [searching, setSearching] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -48,6 +49,22 @@ export default function App() {
   const [registryLoading, setRegistryLoading] = useState(false);
   const [registryError, setRegistryError] = useState(null);
   const [evidenceList, setEvidenceList] = useState([]);
+
+  const navigateAuth = (mode) => {
+    window.history.pushState({}, '', mode === 'register' ? '/register' : '/login');
+    setAuthMode(mode);
+    setShowAuth(true);
+  };
+
+  useEffect(() => {
+    const onPopState = () => {
+      const path = window.location.pathname;
+      setAuthMode(path === '/register' ? 'register' : path === '/verify-email' ? 'verify' : 'login');
+      setShowAuth(['/register', '/login', '/reset-password', '/verify-email'].includes(path));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // Informational service categories; this application is not connected to Ardhisasa.
   const ardhisasaServiceCategories = {
@@ -147,6 +164,8 @@ export default function App() {
       try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         setAccount(accounts[0]);
+        await api.updateProfile({ walletAddress: accounts[0] });
+        await refreshUser();
       } catch (err) {
         console.error("Wallet connection rejected", err);
       }
@@ -307,10 +326,10 @@ export default function App() {
           
           {/* Logo Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => setActiveTab('home')}>
-            <ShieldCheck color="#38bdf8" size={34} style={{ filter: 'drop-shadow(0 0 8px #38bdf8)' }} />
+            <img src="/land-registrychain-logo.png" alt="LandRegistryChain" style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: '8px' }} />
             <div>
               <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 'bold', letterSpacing: '0.5px' }}>LandRegistryChain</h1>
-              <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '600' }}>Decentralized Anti-Ardhisasa Portal</span>
+              <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '600' }}>Secure land records and verification</span>
             </div>
           </div>
 
@@ -335,22 +354,6 @@ export default function App() {
                     {label}
                   </button>
                 ))}
-                <button
-                  key="register"
-                  type="button"
-                  onClick={() => setShowAuth(true)}
-                  style={{ background: 'transparent', color: '#38bdf8', border: '1px solid #38bdf8', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-                >
-                  Register
-                </button>
-                <button
-                  key="signin"
-                  type="button"
-                  onClick={() => setShowAuth(true)}
-                  style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#fff', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
-                >
-                  Sign In
-                </button>
               </>
             ) : (
               <>
@@ -384,7 +387,7 @@ export default function App() {
                 <button
                   key="nav-register"
                   type="button"
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => navigateAuth('register')}
                   style={{ background: 'transparent', color: '#38bdf8', border: '1px solid #38bdf8', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
                 >
                   Register
@@ -392,7 +395,7 @@ export default function App() {
                 <button
                   key="nav-signin"
                   type="button"
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => navigateAuth('login')}
                   style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
                 >
                   Sign In
@@ -450,6 +453,7 @@ export default function App() {
         {/* PAGE 1: HOME PAGE — Department-based layout */}
         {activeTab === 'home' && !selectedDepartment && !selectedService && (
           <div style={{ maxWidth: '1100px', margin: '3rem auto', padding: '0 1rem', textAlign: 'center' }}>
+            <img src="/land-registrychain-logo.png" alt="LandRegistryChain — Secure land, trusted ownership, transparent Kenya" style={{ display: 'block', width: 'min(100%, 340px)', maxHeight: '380px', objectFit: 'contain', margin: '0 auto 1.5rem', borderRadius: '14px', boxShadow: '0 18px 60px rgba(0,0,0,.45)' }} />
             <h1 style={{ fontSize: '3rem', fontWeight: '800', color: '#fff', marginBottom: '1.5rem', textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}>
               LandRegistryChain – Secure Land Registry System
             </h1>
@@ -460,6 +464,11 @@ export default function App() {
             <p style={{ fontSize: '0.95rem', color: '#94a3b8', marginBottom: '2.5rem', textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>
               Choose a service to get started.
             </p>
+
+            <section style={{ maxWidth: 850, margin: '0 auto 2.5rem', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'rgba(15,23,42,.88)', border: '1px solid rgba(56,189,248,.35)', borderRadius: 14 }}>
+              <h2 style={{ margin: '0 0 .5rem', color: '#7dd3fc', fontSize: '1.2rem' }}>Where blockchain fits</h2>
+              <p style={{ margin: 0, color: '#cbd5e1', lineHeight: 1.65 }}>Registrar-approved registration and transfer events are queued in the backend. They are written to the configured EVM contract only when the blockchain worker and contract are configured and running. The registry database records the legal workflow; an on-chain hash is an audit reference, not a title deed. MetaMask can link a wallet address to your profile, but currently does not sign or approve land transfers.</p>
+            </section>
 
             {/* Service cards grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
@@ -491,7 +500,7 @@ export default function App() {
                 {
                   icon: MapPin,
                   label: 'Land Mapping',
-                  description: 'View land locations and boundaries.',
+                  description: 'View saved parcel coordinate points. These are not surveyed boundaries.',
                   tab: 'gis',
                 },
                 {
@@ -796,44 +805,24 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '1.5rem' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', height: '450px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', boxShadow: '0 0 30px rgba(0,0,0,0.6)' }}>
                 <div style={{ position: 'absolute', top: '15px', left: '15px', background: 'rgba(15, 23, 42, 0.9)', padding: '8px 14px', borderRadius: '8px', fontSize: '0.85rem', color: '#cbd5e1', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Layers size={16} color="#38bdf8" /> Registry coordinates (no basemap)
+                  <Layers size={16} color="#38bdf8" /> OpenStreetMap · Registry point
                 </div>
 
                 <div style={{ position: 'absolute', top: '15px', right: '15px', background: 'rgba(15, 23, 42, 0.9)', padding: '8px 14px', borderRadius: '8px', fontSize: '0.85rem', color: '#cbd5e1', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Compass size={16} color="#38bdf8" /> Lat/Lng: {currentGIS.coordinates}
                 </div>
 
-                <div 
-                  onClick={() => {
-                    if (gisOptions.length === 0) return;
-                    const index = gisOptions.findIndex((parcel) => parcel.id === currentGISParcel?.id);
-                    setSelectedGISId(gisOptions[(index + 1) % gisOptions.length].id);
-                  }}
-                  style={{ 
-                    width: '280px', 
-                    height: '200px', 
-                    border: currentGIS.isClean ? '3px dashed #22c55e' : '3px dashed #ef4444', 
-                    background: currentGIS.isClean ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)', 
-                    borderRadius: '16px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    justifyContent: 'center', 
-                    alignItems: 'center', 
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    boxShadow: currentGIS.isClean ? '0 0 30px rgba(34, 197, 94, 0.4)' : '0 0 30px rgba(239, 68, 68, 0.4)'
-                  }}
-                >
-                  <MapPin size={46} color={currentGIS.isClean ? '#22c55e' : '#ef4444'} style={{ filter: 'drop-shadow(0 0 10px currentColor)' }} />
-                  <span style={{ fontWeight: 'bold', color: '#fff', marginTop: '12px', fontSize: '1.15rem' }}>{currentGISParcel?.parcelNumber || 'No parcel selected'}</span>
-                  <span style={{ fontSize: '0.8rem', color: '#e2e8f0', marginTop: '4px' }}>Click to toggle parcel view</span>
-                </div>
+                {currentGISParcel ? (
+                  <iframe title={`Map location for ${currentGISParcel.parcelNumber}`} width="100%" height="100%" style={{ border: 0 }} loading="lazy" src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(currentGISParcel.longitude) - 0.015}%2C${Number(currentGISParcel.latitude) - 0.015}%2C${Number(currentGISParcel.longitude) + 0.015}%2C${Number(currentGISParcel.latitude) + 0.015}&layer=mapnik&marker=${currentGISParcel.latitude}%2C${currentGISParcel.longitude}`} />
+                ) : (
+                  <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: '#cbd5e1', textAlign: 'center', padding: '2rem' }}><MapPin size={36} /><p>No parcel has stored latitude and longitude coordinates yet.</p></div>
+                )}
 
                 <div style={{ position: 'absolute', bottom: '15px', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center', padding: '0 1rem' }}>
-                  Coordinates come from the registry database. No external map tiles or on-chain beacon data are loaded.
+                  The marker uses the saved registry coordinate. It is not a surveyed or legally verified parcel boundary.
                 </div>
               </div>
 
@@ -1132,7 +1121,7 @@ export default function App() {
 
       <Footer onNavigate={setActiveTab} />
 
-      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
+      <AuthModal key={authMode} open={showAuth} initialMode={authMode} onClose={() => { setShowAuth(false); if (['/login', '/register', '/verify-email'].includes(window.location.pathname)) window.history.pushState({}, '', '/'); }} />
     </div>
   );
 }

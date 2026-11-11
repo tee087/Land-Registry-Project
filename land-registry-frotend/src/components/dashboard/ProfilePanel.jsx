@@ -82,9 +82,9 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <Card title="Profile" subtitle="Update your display name, phone number, and linked EVM wallet address.">
+      <Card title="Profile" subtitle="Update your display name, phone number, account category, and linked EVM wallet address.">
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          <Badge tone="info">{user?.role}</Badge>
+          <Badge tone="info">{user?.accountType?.replace('_', ' and ') || user?.role}</Badge>
           <StatusBadge status={user?.status} />
           <Badge tone="neutral">{user?.email}</Badge>
         </div>
@@ -95,7 +95,7 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
           <Field label="Phone">
             <input style={inputStyle} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+254700000000" />
           </Field>
-          <Field label="Wallet address" hint="A 0x-prefixed 20-byte EVM address. Required for on-chain registration and transfers." style={{ gridColumn: 'span 2' }}>
+          <Field label="Wallet address" hint="Optional EVM wallet link for account reference. It does not authenticate you or approve a land transfer." style={{ gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               <input style={{ ...inputStyle, flex: '1 1 320px' }} value={form.walletAddress} onChange={(event) => setForm({ ...form, walletAddress: event.target.value })} placeholder="0x…" />
               <Button type="button" variant="secondary" onClick={useConnectedWallet} disabled={!walletAccount}><Wallet size={14} /> {walletAccount ? 'Use connected wallet' : 'No wallet connected'}</Button>

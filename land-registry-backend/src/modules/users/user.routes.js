@@ -17,6 +17,7 @@ const publicProfile = (user) => ({
   fullName: user.fullName,
   email: user.email,
   phone: user.phone,
+  accountType: user.accountType,
   walletAddress: user.walletAddress ?? null,
   role: user.role,
   status: user.status,
@@ -60,7 +61,7 @@ router.get('/', authorizeRoles('administrator'), asyncHandler(async (req, res) =
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 20));
   const { count, rows } = await User.findAndCountAll({
-    attributes: ['id', 'fullName', 'email', 'phone', 'walletAddress', 'role', 'status', 'createdAt'],
+    attributes: ['id', 'fullName', 'email', 'phone', 'accountType', 'walletAddress', 'role', 'status', 'createdAt'],
     limit,
     offset: (page - 1) * limit,
     order: [['createdAt', 'DESC']],

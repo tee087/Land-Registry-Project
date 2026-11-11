@@ -22,21 +22,22 @@ const labelStyle = {
   textAlign: 'left',
 };
 
-export default function AuthModal({ open, onClose }) {
+export default function AuthModal({ open, onClose, initialMode = 'login' }) {
   const { login, register, error, setError } = useAuth();
   const dialogRef = useRef(null);
   const [resetToken, setResetToken] = useState(new URLSearchParams(window.location.hash.slice(1)).get('token') || '');
-  const [mode, setMode] = useState(window.location.pathname === '/reset-password' ? 'reset' : 'login');
+  const [mode, setMode] = useState(window.location.pathname === '/reset-password' ? 'reset' : initialMode);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
     fullName: '',
-    email: '',
+    email: sessionStorage.getItem('lrc.verificationEmail') || '',
     phone: '',
     password: '',
     confirmPassword: '',
     mfaCode: '',
     emailCode: '',
+    accountType: 'buyer',
   });
   const [mfaSetup, setMfaSetup] = useState(null);
 
@@ -91,7 +92,9 @@ export default function AuthModal({ open, onClose }) {
         await api.verifyEmailCode(form.email, form.emailCode);
         setNotice('Email verified. You can sign in now.');
         setForm((prev) => ({ ...prev, password: '', emailCode: '' }));
+        sessionStorage.removeItem('lrc.verificationEmail');
         setMode('login');
+        window.history.pushState({}, '', '/login');
       } else if (mode === 'register') {
         if (form.password !== form.confirmPassword) {
           throw new Error('Passwords do not match');
@@ -100,11 +103,15 @@ export default function AuthModal({ open, onClose }) {
           fullName: form.fullName,
           email: form.email,
           password: form.password,
+          phone: form.phone.trim(),
+          accountType: form.accountType,
         };
-        if (form.phone.trim()) payload.phone = form.phone.trim();
         const result = await register(payload);
         if (result.verificationRequired) {
-          setNotice('Account created. Enter the six-digit code sent to your email.');
+          if (!result.emailSent) throw new Error('The email provider did not confirm the send. Try again in a minute.');
+          sessionStorage.setItem('lrc.verificationEmail', form.email);
+          window.history.pushState({}, '', '/verify-email');
+          setNotice('Brevo accepted the verification email. Check your inbox and spam folder.');
           setMode('verify');
           return;
         }
@@ -143,7 +150,7 @@ export default function AuthModal({ open, onClose }) {
         onClick={(event) => event.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '420px',
+          maxWidth: mode === 'verify' ? '480px' : '420px',
           background: 'rgba(15, 23, 42, 0.98)',
           border: '1px solid rgba(56, 189, 248, 0.3)',
           borderRadius: '16px',
@@ -238,15 +245,29 @@ export default function AuthModal({ open, onClose }) {
           </div>}
 
           {mode === 'reset' && <div><label style={labelStyle}>Reset token</label><input style={inputStyle} value={resetToken} onChange={(event) => setResetToken(event.target.value)} required /></div>}
-          {mode === 'verify' && <div><label style={labelStyle}>Six-digit email code</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" maxLength={6} value={form.emailCode} onChange={update('emailCode')} required /></div>}
+          {mode === 'verify' && <div><p style={{ color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>Enter the six-digit verification code sent to <strong>{form.email || 'your email address'}</strong>.</p><label style={labelStyle}>Email verification code</label><input style={{ ...inputStyle, textAlign: 'center', letterSpacing: '0.55rem', fontSize: '1.4rem', fontWeight: 700 }} inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" maxLength={6} value={form.emailCode} onChange={update('emailCode')} required /></div>}
 
           {mode === 'register' && (
             <div>
-              <label style={labelStyle}>Phone (optional)</label>
+              <label style={labelStyle}>I am registering as</label>
+              <select style={inputStyle} value={form.accountType} onChange={update('accountType')} required>
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+                <option value="buyer_seller">Buyer and seller</option>
+              </select>
+            </div>
+          )}
+
+          {mode === 'register' && (
+            <div>
+              <label style={labelStyle}>Phone *</label>
               <input
                 style={inputStyle}
+                type="tel"
                 value={form.phone}
                 onChange={update('phone')}
+                required
+                pattern="\\+?[0-9]{9,15}"
                 placeholder="+254700000000"
               />
             </div>
@@ -311,13 +332,12 @@ export default function AuthModal({ open, onClose }) {
 
         {notice && <p role="status" style={{ color: '#86efac', fontSize: '0.85rem' }}>{notice}</p>}
         {mode === 'login' && <button type="button" onClick={() => switchMode('forgot')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Forgot password?</button>}
-        {(mode === 'login' || mode === 'verify') && <button type="button" onClick={async () => { try { await api.requestEmailVerification(form.email); setNotice('If verification is needed for that account, a code will be sent.'); } catch (requestError) { setError(requestError.message); } }} style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>{mode === 'verify' ? 'Resend code' : 'Resend verification code'}</button>}
+        {(mode === 'login' || mode === 'verify') && <button type="button" onClick={async () => { try { const { data } = await api.requestEmailVerification(form.email); setNotice(data.emailSent ? 'Brevo accepted a new verification email. Check your inbox and spam folder.' : 'A code was not sent. Check the email address and wait one minute before requesting another code.'); } catch (requestError) { setError(requestError.message); } }} style={{ display: 'block', marginTop: '0.5rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>{mode === 'verify' ? 'Resend code' : 'Resend verification code'}</button>}
         {mode === 'forgot' && <button type="button" onClick={() => switchMode('login')} style={{ marginTop: '0.8rem', background: 'none', border: 0, color: '#7dd3fc', cursor: 'pointer' }}>Return to sign in</button>}
 
         {mode === 'register' && (
           <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '0.9rem 0 0 0', textAlign: 'left' }}>
-            Password needs 10+ characters with uppercase, lowercase and a number. Public
-            registration always creates a landowner account.
+            Password needs 10+ characters with uppercase, lowercase and a number. This account category does not grant registry staff permissions.
           </p>
         )}
       </div>

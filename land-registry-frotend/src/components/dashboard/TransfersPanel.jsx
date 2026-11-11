@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRightLeft, CheckCircle2, RefreshCw, Search, Send, XCircle } from 'lucide-react';
+import { ArrowRightLeft, CheckCircle2, RefreshCw, Search, Send, XCircle, ClipboardCheck } from 'lucide-react';
 import { api } from '../../api/client.js';
 import { Button, Card, Field, Notice, Spinner, StatusBadge, Table, formatDate, inputStyle } from '../ui.jsx';
 import { useResource } from './useResource.js';
@@ -83,6 +83,19 @@ export default function TransfersPanel({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <Card title="Kenya land sale preparation" subtitle="A practical checklist for buyer, seller, and the professionals involved. Exact requirements depend on the title, tenure, county, and transaction.">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '0.75rem', color: '#cbd5e1', fontSize: '0.88rem' }}>
+          {[
+            ['Buyer and seller', 'Agree written sale terms, confirm identities, and use advocates for conveyancing and execution.'],
+            ['Conveyancing team', 'The parties’ advocates handle the sale agreement, transfer instrument, execution, and lodgement. A registered valuer prepares the valuation; a licensed surveyor may be needed for boundary or survey issues.'],
+            ['Official land search', 'Buyer should obtain an official search to confirm the registered proprietor and recorded interests, charges, or cautions.'],
+            ['Land Control Board', 'For a controlled transaction involving agricultural land, obtain the required LCB consent. It is not a blanket requirement for every sale.'],
+            ['Transfer documents', 'Prepare the executed transfer and collect applicable consents, valuation, rent/rates clearances, stamp duty proof, original title, IDs and KRA PIN documents.'],
+            ['Registration', 'Submit the complete transfer through the relevant land registry and verify the updated register after registration.'],
+          ].map(([title, description]) => <div key={title} style={{ display: 'flex', gap: '9px', padding: '12px', background: 'rgba(2,6,23,.45)', borderRadius: '9px' }}><ClipboardCheck size={17} color="#38bdf8" style={{ flexShrink: 0 }} /><div><strong style={{ color: '#f8fafc' }}>{title}</strong><div style={{ marginTop: '4px' }}>{description}</div></div></div>)}
+        </div>
+        <p style={{ margin: '12px 0 0', color: '#94a3b8', fontSize: '0.78rem' }}>This platform is not Ardhisasa or a government registry and does not grant consent or replace legal advice. Confirm current requirements with the relevant land registry or a Kenyan conveyancing advocate.</p>
+      </Card>
       {canCreate && (
         <Card title="Initiate a transfer" subtitle="Only the current owner can initiate a transfer. The recipient must have an active account. A registrar must approve before ownership changes.">
           <form onSubmit={createTransfer} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.8rem' }}>

@@ -7,7 +7,8 @@ const password = z.string().min(10, 'Password must contain at least 10 character
 export const registerSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(190).transform((v) => v.toLowerCase()),
-  phone: z.string().trim().regex(/^\+?[0-9]{9,15}$/).optional(),
+  phone: z.string().trim().regex(/^\+?[0-9]{9,15}$/),
+  accountType: z.enum(['buyer', 'seller', 'buyer_seller']),
   password,
 }).strict();
 export const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(1).max(128), mfaCode: z.string().regex(/^\d{6}$/).optional() }).strict();

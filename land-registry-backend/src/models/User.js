@@ -6,6 +6,7 @@ const User = sequelize.define('User', {
   fullName: { type: DataTypes.STRING(120), allowNull: false, field: 'full_name' },
   email: { type: DataTypes.STRING(190), allowNull: false, unique: true, set(value) { this.setDataValue('email', value?.trim().toLowerCase()); } },
   phone: { type: DataTypes.STRING(20), allowNull: true, unique: true },
+  accountType: { type: DataTypes.STRING(24), allowNull: false, defaultValue: 'buyer_seller', field: 'account_type' },
   walletAddress: { type: DataTypes.STRING(42), allowNull: true, unique: true, field: 'wallet_address' },
   passwordHash: { type: DataTypes.STRING(255), allowNull: false, field: 'password_hash' },
   role: { type: DataTypes.ENUM('landowner', 'registrar', 'administrator', 'investigator', 'auditor'), allowNull: false, defaultValue: 'landowner' },
