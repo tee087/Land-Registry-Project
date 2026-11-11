@@ -54,7 +54,11 @@ export async function createDocumentUploadUrl(key, contentType, checksumSha256) 
 
 export async function createDocumentDownloadUrl(key, contentType, originalName) {
   if (driver !== 's3') return null;
-  const filename = encodeURIComponent(String(originalName).replace(/[\r\n\u0000-\u001f]/g, '_'));
+  const sanitizedName = Array.from(String(originalName), (character) => {
+    const code = character.codePointAt(0);
+    return code < 32 || (code >= 127 && code <= 159) ? '_' : character;
+  }).join('');
+  const filename = encodeURIComponent(sanitizedName);
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: key,

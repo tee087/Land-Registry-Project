@@ -7,13 +7,11 @@ import { AppError, sendSuccess } from '../../utils/responseHandler.js';
 import { recordAudit } from '../../services/audit.service.js';
 import { BlockchainTransaction, Document, LandParcel, Ownership, Registration, Transfer, User } from '../../models/index.js';
 import {
-  DB_TO_ONCHAIN_STATUS,
   blockchainConfig,
   isBlockchainConfigured,
   readParcelOnChain,
   computeRegistryRecordReference,
   VERIFICATION_STATUS,
-  EVENT_TYPE,
 } from '../../services/blockchain.service.js';
 
 const router = Router();
@@ -230,7 +228,7 @@ router.get(
           ? VERIFICATION_STATUS.EVENT_REFERENCE_MATCH
           : VERIFICATION_STATUS.EVENT_REFERENCE_MISMATCH;
       }
-    } catch (error) {
+    } catch {
       // Blockchain unavailable — do not fabricate verification.
       blockchainStatus = VERIFICATION_STATUS.BLOCKCHAIN_FAILED;
       onChain = null;

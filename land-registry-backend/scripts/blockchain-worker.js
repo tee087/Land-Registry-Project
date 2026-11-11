@@ -5,8 +5,7 @@ import { sequelize } from '../src/config/database.js';
 import BlockchainTransaction from '../src/models/BlockchainTransaction.js';
 import Registration from '../src/models/Registration.js';
 import Transfer from '../src/models/Transfer.js';
-import LandParcel from '../src/models/LandParcel.js';
-import { blockchainConfig, isBlockchainConfigured, computeRegistryRecordReference, EVENT_TYPE, PARCEL_STATUS } from '../src/services/blockchain.service.js';
+import { blockchainConfig, isBlockchainConfigured, EVENT_TYPE, PARCEL_STATUS } from '../src/services/blockchain.service.js';
 import { LAND_REGISTRY_ABI } from '../src/services/landRegistryAbi.js';
 
 const MAX_ATTEMPTS = Math.max(1, Number.parseInt(process.env.BLOCKCHAIN_MAX_ATTEMPTS, 10) || 5);
@@ -106,13 +105,16 @@ async function preflight(contract, tx) {
     case 'transfer:approve': {
       requireFields(payload, ['parcelNumber', 'registryRecordReference', 'documentHash', 'eventType']);
       const reference = normalizeHash(payload.registryRecordReference);
-      const hash = normalizeHash(toBytes32(payload.documentHash));
+      toBytes32(payload.documentHash);
       const eventType = Number(payload.eventType);
+      const expectedEventType = tx.entityType === 'registration' ? EVENT_TYPE.RegistrationApproved : EVENT_TYPE.TransferApproved;
+      if (eventType !== expectedEventType) throw new PermanentError(`payload.eventType does not match ${tx.entityType}`);
 
       // Verify the domain record exists and is approved in the database.
       await verifyDomainRecord(tx.entityType, tx.entityId);
 
       const parcel = await readParcel(contract, payload.parcelNumber);
+      if (tx.entityType === 'transfer' && !parcel.exists) throw new PermanentError('Parcel is not registered on chain');
       const alreadyRecorded = await contract.isEventRecorded(payload.parcelNumber, reference);
 
       if (alreadyRecorded) {

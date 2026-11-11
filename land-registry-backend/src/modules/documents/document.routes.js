@@ -111,7 +111,11 @@ router.post(
 );
 
 function validateUploadMetadata({ originalName, mimeType, sizeBytes, sha256 }) {
-  if (typeof originalName !== 'string' || !originalName.trim() || originalName.length > 255 || /[\u0000-\u001f]/.test(originalName)) {
+  const containsControlCharacters = typeof originalName === 'string' && Array.from(originalName).some((character) => {
+    const code = character.codePointAt(0);
+    return code < 32 || (code >= 127 && code <= 159);
+  });
+  if (typeof originalName !== 'string' || !originalName.trim() || originalName.length > 255 || containsControlCharacters) {
     throw new AppError('A valid originalName (maximum 255 characters) is required', 422, 'VALIDATION_ERROR');
   }
   if (!['application/pdf', 'image/jpeg', 'image/png', 'image/tiff'].includes(mimeType)) {
