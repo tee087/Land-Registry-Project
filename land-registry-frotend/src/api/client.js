@@ -14,6 +14,29 @@ export class ApiError extends Error {
   }
 }
 
+const VALIDATION_LABELS = {
+  fullName: 'Full name', email: 'Email address', phone: 'Phone number',
+  accountType: 'Account type', password: 'Password', captchaToken: 'Human verification',
+  code: 'Verification code', mfaCode: 'Authenticator code',
+};
+
+function getRequestErrorMessage(payload, status) {
+  if (status >= 500) return 'Something went wrong on our side. Please try again shortly.';
+  const details = payload?.error?.details;
+  if (payload?.error?.code === 'VALIDATION_ERROR' && Array.isArray(details) && details.length) {
+    const messages = details.map(({ field, message }) => {
+      const label = VALIDATION_LABELS[field] || 'Form';
+      const reason = String(message || '').replace(/^Invalid input$/, 'is invalid').replace(/^Required$/, 'is required');
+      return `${label}: ${reason}`;
+    });
+    return [...new Set(messages)].join(' ');
+  }
+  if (payload?.error?.code === 'HUMAN_VERIFICATION_FAILED' || payload?.error?.code === 'HUMAN_VERIFICATION_REQUIRED') {
+    return 'Please complete the security check and try again.';
+  }
+  return payload?.message || 'We could not complete that request. Please check your information and try again.';
+}
+
 export const tokenStore = {
   get access() {
     return localStorage.getItem(ACCESS_KEY);
@@ -87,9 +110,7 @@ async function rawRequest(path, { method = 'GET', body, token, responseType = 'j
   const payload = await res.json().catch(() => null);
 
   if (!res.ok || !payload?.success) {
-    const message = res.status >= 500
-      ? 'Something went wrong on our side. Please try again shortly.'
-      : payload?.message || 'We could not complete that request. Please check your information and try again.';
+    const message = getRequestErrorMessage(payload, res.status);
     throw new ApiError(message, {
       status: res.status,
       code: payload?.error?.code || 'REQUEST_FAILED',
