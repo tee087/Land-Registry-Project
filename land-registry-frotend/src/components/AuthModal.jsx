@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/useAuth.js';
 import { api } from '../api/client.js';
+import TurnstileWidget from './TurnstileWidget.jsx';
 
 const inputStyle = {
   width: '100%',
@@ -29,6 +30,8 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
   const [mode, setMode] = useState(window.location.pathname === '/reset-password' ? 'reset' : initialMode);
   const [busy, setBusy] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [captchaReset, setCaptchaReset] = useState(0);
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
     fullName: '',
@@ -60,14 +63,26 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
     setMode(next);
     setError(null);
     setNotice('');
+    setCaptchaToken('');
+    setCaptchaReset((value) => value + 1);
   };
 
   const submit = async (event) => {
     event.preventDefault();
+    const isAuthSubmit = mode === 'login' || mode === 'register';
+    const captchaConfigured = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY);
+    if (isAuthSubmit && import.meta.env.PROD && !captchaConfigured) {
+      setError('Human verification is not configured yet. Please try again later.');
+      return;
+    }
+    if (isAuthSubmit && captchaConfigured && !captchaToken) {
+      setError('Complete the human verification check first.');
+      return;
+    }
     setBusy(true);
     try {
       if (mode === 'login') {
-        const result = await login(form.email, form.password, form.mfaCode);
+        const result = await login(form.email, form.password, form.mfaCode, captchaToken);
         if (result.mfaEnrollmentRequired) setMode('mfaSetup');
         else onClose();
       } else if (mode === 'mfaSetup') {
@@ -106,6 +121,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
           password: form.password,
           phone: form.phone.trim(),
           accountType: form.accountType,
+          ...(captchaToken ? { captchaToken } : {}),
         };
         const result = await register(payload);
         if (result.verificationRequired) {
@@ -123,6 +139,10 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
       // Error is surfaced by the auth context / thrown validation message below.
     } finally {
       setBusy(false);
+      if (isAuthSubmit) {
+        setCaptchaToken('');
+        setCaptchaReset((value) => value + 1);
+      }
     }
   };
 
@@ -308,6 +328,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
                 required
               />
             </div>
+          )}
+
+          {(mode === 'login' || mode === 'register') && import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+            <TurnstileWidget action={mode} onToken={setCaptchaToken} resetSignal={captchaReset} />
+          )}
+          {(mode === 'login' || mode === 'register') && import.meta.env.PROD && !import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+            <p role="status" style={{ color: '#fbbf24', fontSize: '0.8rem', margin: 0 }}>Human verification is not configured. Sign in and registration will be unavailable until the site key is added.</p>
           )}
 
           {(error || localError) && (

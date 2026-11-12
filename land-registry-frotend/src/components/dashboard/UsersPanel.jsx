@@ -37,17 +37,33 @@ export default function UsersPanel({ user }) {
     }
   };
 
+  const changeRole = async (target, role) => {
+    if (!window.confirm(`Assign ${role} to ${target.fullName || target.email}? Confirm that any required appointment evidence has been independently reviewed.`)) return;
+    setBusyId(target.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await api.updateUserRole(target.id, role);
+      setNotice(`${target.fullName || target.email} is now ${role}.`);
+      await refresh();
+    } catch (err) {
+      setError(err.message || 'Unable to update user role.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <Card
       title="User administration"
-      subtitle="Activate, suspend, or disable accounts. Role assignment is not exposed through this UI."
+      subtitle="Review identity and appointment evidence before granting staff access. Registrar access currently covers registry workflows across all counties; do not assign it for a county-only appointment or treat this app as proof of statutory board membership. Administrator access cannot be assigned here."
       actions={<Button variant="secondary" onClick={refresh}><RefreshCw size={14} /> Refresh</Button>}
     >
       {error && <Notice tone="error" style={{ marginBottom: '0.8rem' }}>{error}</Notice>}
       {notice && <Notice tone="success" style={{ marginBottom: '0.8rem' }}>{notice}</Notice>}
       {loading ? <Spinner label="Loading users…" /> : loadError ? <Notice tone="error">{loadError}</Notice> : (
         <Table
-          columns={['User', 'Role', 'Status', 'Wallet', 'Joined', 'Change status']}
+          columns={['User', 'Role', 'Status', 'Wallet', 'Joined', 'Account access']}
           rows={rows}
           empty="No users found."
           renderRow={(row) => (
@@ -64,6 +80,20 @@ export default function UsersPanel({ user }) {
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <Users size={14} color="#94a3b8" />
                   <select
+                    aria-label={`Change role for ${row.fullName || row.email}`}
+                    style={{ ...inputStyle, width: 'auto', padding: '6px 8px', fontSize: '0.8rem' }}
+                    value={row.role === 'administrator' ? 'administrator' : row.role}
+                    disabled={busyId === row.id || row.role === 'administrator'}
+                    onChange={(event) => changeRole(row, event.target.value)}
+                  >
+                    {row.role === 'administrator' && <option value="administrator">administrator (protected)</option>}
+                    <option value="landowner">landowner</option>
+                    <option value="registrar">registrar</option>
+                    <option value="investigator">investigator</option>
+                    <option value="auditor">auditor</option>
+                  </select>
+                  <select
+                    aria-label={`Change account status for ${row.fullName || row.email}`}
                     style={{ ...inputStyle, width: 'auto', padding: '6px 8px', fontSize: '0.8rem' }}
                     value={row.status}
                     disabled={busyId === row.id}

@@ -66,6 +66,15 @@ router.get(
     if (q.length > 80) throw new AppError('Parcel number is too long', 422, 'VALIDATION_ERROR');
     const match = await LandParcel.findOne({ where: { parcelNumber: q }, attributes: ['id'] });
     if (!match) return sendSuccess(res, { data: null, message: 'Parcel not found' });
+    if (req.user.role === 'landowner' && req.user.accountType === 'buyer') {
+      const summary = await LandParcel.findByPk(match.id, {
+        attributes: ['id', 'parcelNumber', 'county', 'location', 'areaHectares', 'block', 'latitude', 'longitude', 'status', 'createdAt', 'updatedAt'],
+      });
+      return sendSuccess(res, {
+        data: { ...summary.get({ plain: true }), ownerships: [], documents: [], limitedBuyerView: true },
+        message: 'Limited registry summary. Obtain an official search for verified ownership and document details.',
+      });
+    }
     await assertCanReadParcel(req.user, match.id);
     const parcel = await LandParcel.findOne({
       where: { parcelNumber: q },
@@ -75,7 +84,7 @@ router.get(
           as: 'ownerships',
           where: { isCurrent: true },
           required: false,
-          include: [{ model: User, as: 'owner', attributes: ['id', 'fullName', 'email'] }],
+          include: [{ model: User, as: 'owner', attributes: req.user.accountType === 'buyer' ? ['id', 'fullName'] : ['id', 'fullName', 'email'] }],
         },
         {
           model: Document,

@@ -39,18 +39,18 @@ const ICONS = {
   profile: UserCircle,
 };
 
-export default function Dashboard({ user, refreshUser, walletAccount, onConnectWallet, onUnreadChange }) {
+export default function Dashboard({ user, refreshUser, walletAccount, onConnectWallet, onUnreadChange, onFindLand }) {
   const [active, setActive] = useState('overview');
   const role = user?.role;
 
   const sections = useMemo(() => {
+    const isBuyer = user?.accountType === 'buyer';
     const base = [
       { id: 'overview', label: 'Overview' },
-      { id: 'parcels', label: role === 'landowner' ? 'My parcels' : 'Parcels' },
-      { id: 'registrations', label: 'Registrations' },
-      { id: 'transfers', label: 'Transfers' },
-      { id: 'documents', label: 'Documents' },
+      { id: 'parcels', label: isBuyer ? 'Land records' : role === 'landowner' ? 'My properties' : 'Parcels' },
+      { id: 'transfers', label: isBuyer ? 'Purchase requests' : 'Sales & transfers' },
     ];
+    if (!isBuyer || role !== 'landowner') base.push({ id: 'registrations', label: 'Registrations' }, { id: 'documents', label: 'Documents' });
     if (['investigator', 'administrator'].includes(role)) base.push({ id: 'evidence', label: 'Evidence' });
     if (['auditor', 'administrator'].includes(role)) base.push({ id: 'audit', label: 'Audit trail' });
     if (role === 'administrator') base.push({ id: 'users', label: 'Users' });
@@ -58,7 +58,7 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
     base.push({ id: 'notifications', label: 'Notifications' });
     base.push({ id: 'profile', label: 'Profile' });
     return base;
-  }, [role]);
+  }, [role, user?.accountType]);
 
   const current = sections.some((section) => section.id === active) ? active : 'overview';
 
@@ -74,7 +74,7 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
       case 'blockchain': return <BlockchainPanel user={user} />;
       case 'notifications': return <NotificationsPanel onUnreadChange={onUnreadChange} />;
       case 'profile': return <ProfilePanel user={user} refreshUser={refreshUser} walletAccount={walletAccount} onConnectWallet={onConnectWallet} />;
-      default: return <OverviewPanel user={user} onNavigate={setActive} onUnreadChange={onUnreadChange} />;
+      default: return <OverviewPanel user={user} onNavigate={setActive} onFindLand={onFindLand} onUnreadChange={onUnreadChange} />;
     }
   };
 
@@ -83,11 +83,12 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
       <Card style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div>
-            <h1 style={{ margin: 0, color: '#fff', fontSize: '1.7rem' }}>Registry dashboard</h1>
-            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Signed in as {user?.email}</p>
+            <h1 style={{ margin: 0, color: '#fff', fontSize: '1.7rem' }}>{user?.role === 'landowner' ? (user?.accountType === 'buyer' ? 'Buyer workspace' : user?.accountType === 'seller' ? 'Seller workspace' : 'Buyer and seller workspace') : `${user?.role} workspace`}</h1>
+            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Signed in as {user?.fullName || user?.email}</p>
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             <Badge tone="info">{user?.role}</Badge>
+            {user?.accountType && <Badge tone="neutral">{user.accountType.replace('_', ' and ')}</Badge>}
             {user?.walletAddress ? <Badge tone="success">wallet linked</Badge> : <Badge tone="warning">wallet not linked</Badge>}
           </div>
         </div>

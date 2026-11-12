@@ -210,12 +210,26 @@ export const api = {
   logout: (refreshToken) => request('/auth/logout', { method: 'POST', body: { refreshToken } }),
   me: () => request('/auth/me', { auth: true }),
   updateProfile: (input) => request('/users/me', { method: 'PATCH', body: input, auth: true }),
+  uploadProfileAvatar: async (file) => {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Unable to read the selected image.'));
+      reader.readAsDataURL(file);
+    });
+    const contentBase64 = dataUrl.split(',')[1] || '';
+    return request('/users/me/avatar', { method: 'PUT', body: { mimeType: file.type, contentBase64 }, auth: true });
+  },
+  getProfileAvatar: () => request('/users/me/avatar', { auth: true, responseType: 'blob' }),
+  removeProfileAvatar: () => request('/users/me/avatar', { method: 'DELETE', auth: true }),
+  requestReviewerAccess: (input) => request('/users/me/reviewer-access-request', { method: 'POST', body: input, auth: true }),
   changePassword: (input) => request('/users/me/password', { method: 'PATCH', body: input, auth: true }),
   lookupUser: (email) => request('/users/lookup', { query: { email }, auth: true }),
 
   // Users (administrator)
   listUsers: (query) => request('/users', { query, auth: true }),
   updateUserStatus: (id, status) => request(`/users/${id}/status`, { method: 'PATCH', body: { status }, auth: true }),
+  updateUserRole: (id, role) => request(`/users/${id}/role`, { method: 'PATCH', body: { role }, auth: true }),
 
   // Land registry
   searchParcel: (parcelNumber) => request('/parcels/search', { query: { q: parcelNumber }, auth: true }),

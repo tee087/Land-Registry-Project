@@ -12,6 +12,12 @@ const ROLE_COPY = {
   auditor: 'Read registry records, review audit trails, and inspect registration and transfer history.',
 };
 
+const ACCOUNT_COPY = {
+  buyer: 'Your buyer workspace brings registry searches and incoming purchase or transfer requests together. A registry search is a due diligence aid, not an official certificate.',
+  seller: 'Manage your land records, prepare required sale documents, and track transfer requests. Ownership changes only after the authorized registry review.',
+  buyer_seller: 'Manage your land records and review incoming or outgoing transfer requests from one workspace.',
+};
+
 function StatCard({ icon: Icon, label, value, tone = '#38bdf8' }) {
   return (
     <div style={{ background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1rem 1.1rem' }}>
@@ -23,7 +29,7 @@ function StatCard({ icon: Icon, label, value, tone = '#38bdf8' }) {
   );
 }
 
-export default function OverviewPanel({ user, onNavigate, onUnreadChange }) {
+export default function OverviewPanel({ user, onNavigate, onFindLand, onUnreadChange }) {
   const load = useCallback(async () => {
     const [parcels, registrations, transfers, notifications] = await Promise.all([
       api.listParcels({ limit: 100 }),
@@ -54,6 +60,8 @@ export default function OverviewPanel({ user, onNavigate, onUnreadChange }) {
   const frozen = parcels.filter((row) => ['frozen', 'disputed', 'archived'].includes(row.status));
   const owned = parcels.filter((row) => row.status === 'active');
   const isStaff = ['registrar', 'administrator', 'auditor', 'investigator'].includes(user?.role);
+  const isBuyer = user?.role === 'landowner' && user?.accountType === 'buyer';
+  const relevantPendingTransfers = pendingTransfers.filter((row) => isBuyer ? String(row.toOwnerId) === String(user?.id) : String(row.fromOwnerId) === String(user?.id) || isStaff);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -62,7 +70,7 @@ export default function OverviewPanel({ user, onNavigate, onUnreadChange }) {
           <div>
             <h2 style={{ margin: 0, color: '#fff', fontSize: '1.5rem' }}>Welcome, {user?.fullName || user?.email}</h2>
             <p style={{ margin: '6px 0 0 0', color: '#94a3b8', maxWidth: '650px', lineHeight: 1.55 }}>
-              {ROLE_COPY[user?.role] || 'Land registry dashboard.'}
+              {user?.role === 'landowner' ? (ACCOUNT_COPY[user?.accountType] || ACCOUNT_COPY.buyer_seller) : ROLE_COPY[user?.role] || 'Land registry workspace.'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -71,19 +79,39 @@ export default function OverviewPanel({ user, onNavigate, onUnreadChange }) {
             {user?.walletAddress ? <Badge tone="success">wallet linked</Badge> : <Badge tone="warning">no wallet</Badge>}
           </div>
         </div>
+        {isBuyer ? (
+          <div style={{ marginTop: '1.2rem', display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button onClick={onFindLand}><LandPlot size={14} /> Search registry records</Button>
+            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>This app checks registry records; it does not publish property listings. Confirm a listing and documents independently with a conveyancing advocate.</span>
+          </div>
+        ) : user?.role === 'landowner' && (
+          <div style={{ marginTop: '1.2rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <Button onClick={() => onNavigate('parcels')}><LandPlot size={14} /> Manage my properties</Button>
+            <Button variant="secondary" onClick={() => onNavigate('transfers')}><ArrowRight size={14} /> View sales and transfers</Button>
+          </div>
+        )}
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.8rem' }}>
         <StatCard icon={LandPlot} label={isStaff ? 'Parcels in scope' : 'Your parcels'} value={parcels.length} />
         <StatCard icon={ShieldCheck} label="Active titles" value={owned.length} tone="#4ade80" />
         <StatCard icon={Scale} label="Frozen / disputed" value={frozen.length} tone="#f87171" />
-        <StatCard icon={FileCheck2} label="Pending registrations" value={pendingRegistrations.length} tone="#fbbf24" />
-        <StatCard icon={ArrowRight} label="Pending transfers" value={pendingTransfers.length} tone="#a78bfa" />
+        {!isBuyer && <StatCard icon={FileCheck2} label="Pending registrations" value={pendingRegistrations.length} tone="#fbbf24" />}
+        <StatCard icon={ArrowRight} label={isBuyer ? 'Incoming purchase requests' : 'Pending transfers'} value={isBuyer ? relevantPendingTransfers.length : pendingTransfers.length} tone="#a78bfa" />
         <StatCard icon={Bell} label="Unread notifications" value={data?.unread || 0} tone="#38bdf8" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-        <Card title="Recent registrations" subtitle="Latest requests visible to your role" actions={<Button variant="secondary" onClick={() => onNavigate('registrations')}>Open <ArrowRight size={14} /></Button>}>
+        {isBuyer ? (
+          <Card title="Buyer due diligence" subtitle="Steps to take before you commit to a purchase">
+            <ol style={{ color: '#cbd5e1', lineHeight: 1.8, paddingLeft: '1.2rem', margin: 0 }}>
+              <li>Run a registry search and confirm the parcel reference and location.</li>
+              <li>Request an official search and verify the seller’s identity and authority.</li>
+              <li>Have a conveyancing advocate review the title and sale documents.</li>
+              <li>Do not pay based only on this preview or a blockchain reference.</li>
+            </ol>
+          </Card>
+        ) : <Card title="Recent registrations" subtitle="Latest requests visible to your role" actions={<Button variant="secondary" onClick={() => onNavigate('registrations')}>Open <ArrowRight size={14} /></Button>}>
           {registrations.length === 0 ? <EmptyState>No registrations yet.</EmptyState> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {registrations.slice(0, 4).map((row) => (
@@ -97,7 +125,7 @@ export default function OverviewPanel({ user, onNavigate, onUnreadChange }) {
               ))}
             </div>
           )}
-        </Card>
+        </Card>}
 
         <Card title="Recent transfers" subtitle="Ownership transfer requests" actions={<Button variant="secondary" onClick={() => onNavigate('transfers')}>Open <ArrowRight size={14} /></Button>}>
           {transfers.length === 0 ? <EmptyState>No transfers yet.</EmptyState> : (

@@ -43,6 +43,8 @@ const rawEnv = z.object({
   REDIS_URL: optionalNonEmpty(z.string().url()),
   REQUIRE_EMAIL_VERIFICATION: z.enum(['true','false']).optional(),
   MFA_ENCRYPTION_KEY: z.string().optional(),
+  TURNSTILE_SECRET_KEY: optionalNonEmpty(z.string()),
+  TURNSTILE_HOSTNAMES: optionalNonEmpty(z.string()),
 }).safeParse(process.env);
 if (!rawEnv.success) throw new Error(`Invalid environment configuration: ${rawEnv.error.issues.map((i) => i.path.join('.') + ' ' + i.message).join('; ')}`);
 const parsed = rawEnv.data;
@@ -58,6 +60,11 @@ const env = Object.freeze({
   frontendUrl: parsed.FRONTEND_URL || 'http://localhost:5173',
   email: Object.freeze({ required: parsed.REQUIRE_EMAIL_VERIFICATION ? parsed.REQUIRE_EMAIL_VERIFICATION === 'true' : isProduction, host: parsed.SMTP_HOST, port: parsed.SMTP_PORT, user: parsed.SMTP_USER, password: parsed.SMTP_PASSWORD, from: parsed.SMTP_FROM }),
   redisUrl: parsed.REDIS_URL,
+  turnstile: Object.freeze({
+    secretKey: parsed.TURNSTILE_SECRET_KEY,
+    hostnames: (process.env.TURNSTILE_HOSTNAMES || (parsed.FRONTEND_URL ? new URL(parsed.FRONTEND_URL).hostname : ''))
+      .split(',').map((hostname) => hostname.trim()).filter(Boolean),
+  }),
   mfaEncryptionKey: parsed.MFA_ENCRYPTION_KEY,
   // Render terminates TLS at its edge proxy and forwards one trusted hop.
   // Keep local development direct unless explicitly configured.

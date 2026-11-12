@@ -38,11 +38,11 @@ export function AuthProvider({ children }) {
     setError('Your session has expired. Please sign in again.');
   }), []);
 
-  const login = useCallback(async (email, password, mfaCode) => {
+  const login = useCallback(async (email, password, mfaCode, captchaToken) => {
     setError(null);
     setSessionExpired(false);
     try {
-      const { data } = await api.login({ email, password, ...(mfaCode ? { mfaCode } : {}) });
+      const { data } = await api.login({ email, password, ...(mfaCode ? { mfaCode } : {}), ...(captchaToken ? { captchaToken } : {}) });
       tokenStore.set(data);
       setUser(data.user);
       return data;

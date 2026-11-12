@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import env from '../config/environment.js';
 
@@ -36,6 +36,18 @@ export async function putDocument(key, buffer, contentType) {
   }
   await fs.mkdir(uploadDir, { recursive: true });
   await fs.writeFile(localPath(key), buffer, { flag: 'wx' });
+}
+
+export async function deleteDocument(key) {
+  if (driver === 's3') {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    return;
+  }
+  try {
+    await fs.unlink(localPath(key));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
 }
 
 export async function createDocumentUploadUrl(key, contentType, checksumSha256) {

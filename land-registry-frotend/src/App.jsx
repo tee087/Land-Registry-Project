@@ -11,7 +11,7 @@ import ServiceDetail from './components/ServiceDetail.jsx';
 import { Notice } from './components/ui.jsx';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home');
+  const [requestedTab, setRequestedTab] = useState('home');
   const [selectedServiceCat, setSelectedServiceCat] = useState('registration');
   const [account, setAccount] = useState(null);
   const [authLinkNotice, setAuthLinkNotice] = useState('');
@@ -25,6 +25,8 @@ export default function App() {
   // Department / service navigation state
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
+
+  const activeTab = user && ['home', 'services', 'about'].includes(requestedTab) ? 'dashboard' : requestedTab;
 
   // Property Search State
   const [parcelId, setParcelId] = useState('');
@@ -178,7 +180,12 @@ export default function App() {
     if (tab === 'forensic' && !canViewInvestigations) {
       return;
     }
-    setActiveTab(tab);
+    setRequestedTab(tab);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setRequestedTab('home');
   };
 
   useEffect(() => {
@@ -259,20 +266,22 @@ export default function App() {
         setSearchResult({ error: 'Property record not found in the registry database.' });
         return;
       }
+      const buyerSummary = Boolean(parcel.limitedBuyerView);
       const currentOwner = (parcel.ownerships || [])[0]?.owner;
       const currentDocument = (parcel.documents || []).find((doc) => doc.isCurrent) || (parcel.documents || [])[0];
       setSearchResult({
         id: parcel.id,
         parcelId: parcel.parcelNumber,
         location: [parcel.location, parcel.county].filter(Boolean).join(', ') || parcel.county,
-        ownerName: currentOwner?.fullName || 'Unregistered',
-        owner: currentOwner?.email || '—',
+        buyerSummary,
+        ownerName: buyerSummary ? 'Not shown in buyer summary' : currentOwner?.fullName || 'Unregistered',
+        owner: buyerSummary ? 'Obtain an official land search' : currentOwner?.email || '—',
         size: parcel.areaHectares ? `${parcel.areaHectares} Ha` : 'N/A',
         status: String(parcel.status).toUpperCase(),
         isDisputed: ['frozen', 'disputed', 'archived'].includes(parcel.status),
-        documentHash: currentDocument?.sha256 || null,
-        documents: parcel.documents || [],
-        history: (parcel.documents || []).map((doc) => ({
+        documentHash: buyerSummary ? null : currentDocument?.sha256 || null,
+        documents: buyerSummary ? [] : parcel.documents || [],
+        history: buyerSummary ? null : (parcel.documents || []).map((doc) => ({
           date: String(doc.createdAt || '').slice(0, 10),
           event: `Document v${doc.version} — ${doc.originalName}${doc.isCurrent ? ' (current)' : ''}`,
           digest: doc.sha256 ? `${doc.sha256.slice(0, 20)}…` : '—',
@@ -314,7 +323,9 @@ export default function App() {
       minHeight: '100vh', 
       fontFamily: 'system-ui, sans-serif', 
       color: '#f8fafc',
-      backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.70), rgba(2, 6, 23, 0.85)), url('${tabBackgrounds[activeTab] || tabBackgrounds.home}')`,
+      backgroundImage: !user && activeTab === 'home'
+        ? `linear-gradient(to bottom, rgba(15, 23, 42, 0.34), rgba(2, 6, 23, 0.63)), url('${tabBackgrounds.home}')`
+        : `linear-gradient(to bottom, rgba(15, 23, 42, 0.70), rgba(2, 6, 23, 0.85)), url('${tabBackgrounds[activeTab] || tabBackgrounds.home}')`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
@@ -325,13 +336,13 @@ export default function App() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           
           {/* Logo Brand */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => setActiveTab('home')}>
+          <button type="button" aria-label={user ? 'Open your workspace' : 'Open the public home page'} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: 'transparent', color: 'inherit', border: 0, padding: 0, textAlign: 'left' }} onClick={() => setRequestedTab(user ? 'dashboard' : 'home')}>
             <img src="/land-registrychain-logo.png" alt="LandRegistryChain" style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: '8px' }} />
             <div>
               <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 'bold', letterSpacing: '0.5px' }}>LandRegistryChain</h1>
               <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: '600' }}>Secure land records and verification</span>
             </div>
-          </div>
+          </button>
 
           {/* Role-based navigation links */}
           <nav aria-label="Primary" style={{ display: 'flex', gap: '6px', background: 'rgba(2, 6, 23, 0.6)', padding: '5px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
@@ -347,7 +358,7 @@ export default function App() {
                   <button
                     key={tab}
                     type="button"
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => setRequestedTab(tab)}
                     aria-current={activeTab === tab ? 'page' : undefined}
                     style={{ background: activeTab === tab ? '#38bdf8' : 'transparent', color: activeTab === tab ? '#0f172a' : '#cbd5e1', border: 'none', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
                   >
@@ -358,12 +369,9 @@ export default function App() {
             ) : (
               <>
                 {[
-                  { tab: 'home', label: 'Home' },
-                  { tab: 'services', label: 'Services' },
-                  { tab: 'search', label: 'Search Land' },
-                  { tab: 'gis', label: 'GIS Map' },
-                  { tab: 'about', label: 'About Us' },
-                  { tab: 'dashboard', label: 'Dashboard' },
+                  { tab: 'dashboard', label: user.accountType === 'buyer' ? 'Buyer workspace' : user.accountType === 'seller' ? 'Seller workspace' : 'Workspace' },
+                  { tab: 'search', label: user.accountType === 'buyer' ? 'Find land' : 'Registry search' },
+                  { tab: 'gis', label: 'GIS map' },
                   ...(canViewInvestigations ? [{ tab: 'forensic', label: 'Investigations' }] : []),
                 ].map(({ tab, label }) => (
                   <button
@@ -411,7 +419,7 @@ export default function App() {
                   <span style={{ fontSize: '0.65rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 'bold' }}>{user.role}</span>
                   <button
                     key="nav-logout"
-                    onClick={logout}
+                    onClick={handleLogout}
                     title="Sign out"
                     style={{ background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                   >
@@ -421,7 +429,7 @@ export default function App() {
                 {user && (
                   <button
                     key="nav-notifications"
-                    onClick={() => setActiveTab('notifications')}
+                    onClick={() => setRequestedTab('notifications')}
                     title="Notifications"
                     style={{ position: 'relative', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                   >
@@ -514,10 +522,10 @@ export default function App() {
                 return (
                   <div
                     key={card.label}
-                    onClick={() => setActiveTab(card.tab)}
+                    onClick={() => setRequestedTab(card.tab)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && setActiveTab(card.tab)}
+                    onKeyDown={(e) => e.key === 'Enter' && setRequestedTab(card.tab)}
                     style={{
                       background: 'rgba(15, 23, 42, 0.85)',
                       backdropFilter: 'blur(16px)',
@@ -658,7 +666,7 @@ export default function App() {
                   {ardhisasaServiceCategories[selectedServiceCat].services.map((service, idx) => (
                     <div key={idx} style={{ background: 'rgba(2, 6, 23, 0.7)', padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: '600', color: '#f8fafc' }}>{service}</span>
-                      <button onClick={() => setActiveTab('search')} style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                      <button onClick={() => setRequestedTab('search')} style={{ background: 'rgba(56, 189, 248, 0.15)', border: '1px solid #38bdf8', color: '#38bdf8', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer' }}>
                         Search registry
                       </button>
                     </div>
@@ -764,9 +772,13 @@ export default function App() {
                     </div>
                   )}
 
+                  {searchResult.buyerSummary && <Notice tone="info" style={{ marginTop: '0.8rem' }}>Buyer preview only: ownership identity and private document details are withheld. Obtain an official search and verify the seller’s authority before paying or signing.</Notice>}
+
                   <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '1.25rem', marginTop: '1rem' }}>
                     <h4 style={{ margin: '0 0 12px 0', color: '#e2e8f0', fontSize: '1.05rem' }}>Document version history</h4>
-                    {searchResult.history.length === 0 ? (
+                    {searchResult.buyerSummary ? (
+                      <p style={{ color: '#94a3b8', margin: 0 }}>Document details are not shown in a buyer preview. Request an official search through the relevant land registry.</p>
+                    ) : searchResult.history.length === 0 ? (
                       <p style={{ color: '#94a3b8', margin: 0 }}>No documents have been uploaded for this parcel.</p>
                     ) : searchResult.history.map((item, index) => (
                       <div key={index} style={{ background: 'rgba(2, 6, 23, 0.7)', padding: '14px 18px', borderRadius: '10px', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '0.9rem', border: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
@@ -1034,12 +1046,13 @@ export default function App() {
         {/* PAGE 6: DASHBOARD */}
         {activeTab === 'dashboard' && (
           user ? (
-            <Dashboard
+              <Dashboard
               user={user}
               refreshUser={refreshUser}
               walletAccount={account}
               onConnectWallet={connectWallet}
               onUnreadChange={setUnreadCount}
+              onFindLand={() => setRequestedTab('search')}
             />
           ) : (
             <div style={{ maxWidth: '720px', margin: '3rem auto', padding: '0 1rem' }}>
@@ -1049,7 +1062,7 @@ export default function App() {
                 <p style={{ color: '#cbd5e1', maxWidth: '520px', margin: '0 auto 1.75rem auto', lineHeight: '1.6' }}>
                   The dashboard shows the parcels, registrations, transfers, documents, and notifications available to your role.
                 </p>
-                <button
+              <button
                   onClick={() => setShowAuth(true)}
                   style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '13px 28px', borderRadius: '12px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '10px', boxShadow: '0 0 25px rgba(2, 132, 199, 0.5)' }}
                 >
@@ -1122,7 +1135,7 @@ export default function App() {
 
       </main>
 
-      <Footer onNavigate={setActiveTab} />
+      <Footer onNavigate={setRequestedTab} />
 
       <AuthModal key={authMode} open={showAuth} initialMode={authMode} onClose={() => { setShowAuth(false); if (['/login', '/register', '/verify-email'].includes(window.location.pathname)) window.history.pushState({}, '', '/'); }} />
     </div>

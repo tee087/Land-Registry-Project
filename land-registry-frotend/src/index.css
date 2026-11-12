@@ -63,8 +63,12 @@ textarea {
   .lrc-dashboard-grid > nav {
     position: static !important;
     flex-direction: row !important;
-    flex-wrap: wrap !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
   }
+
+  .lrc-dashboard-grid > nav button { flex: 0 0 auto; }
 
   .lrc-footer-grid {
     grid-template-columns: 1fr !important;

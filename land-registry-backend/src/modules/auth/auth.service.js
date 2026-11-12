@@ -9,6 +9,7 @@ import AuthToken from '../../models/AuthToken.js';
 import { sendAuthLink } from '../../services/email.service.js';
 import { generateSecret, generateURI, verify as verifyTotp } from 'otplib';
 import { AppError } from '../../utils/responseHandler.js';
+import { verifyHuman } from '../../services/human-verification.service.js';
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const privilegedRoles = new Set(['registrar', 'administrator', 'investigator', 'auditor']);
@@ -23,7 +24,7 @@ function decryptSecret(value) {
   decipher.setAuthTag(Buffer.from(tag, 'hex'));
   return Buffer.concat([decipher.update(Buffer.from(data, 'hex')), decipher.final()]).toString('utf8');
 }
-const publicUser = (user) => ({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, accountType: user.accountType, walletAddress: user.walletAddress ?? null, role: user.role, status: user.status, emailVerifiedAt: user.emailVerifiedAt });
+const publicUser = (user) => ({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, accountType: user.accountType, hasAvatar: Boolean(user.avatarKey), walletAddress: user.walletAddress ?? null, role: user.role, status: user.status, emailVerifiedAt: user.emailVerifiedAt });
 function accessToken(user) {
   return jwt.sign({ role: user.role }, env.auth.accessSecret, { subject: String(user.id), expiresIn: env.auth.accessTtl, issuer: 'land-registry-api', audience: 'land-registry-client' });
 }
@@ -34,6 +35,7 @@ async function issueRefreshToken(user, transaction) {
   return token;
 }
 export async function register(input) {
+  await verifyHuman(input.captchaToken, 'register');
   const existing = await User.findOne({ where: { email: input.email } });
   if (existing) {
     const emailSent = env.email.required && existing.status === 'pending'
@@ -51,7 +53,8 @@ export async function register(input) {
   return { user: publicUser(user), accessToken: accessToken(user), refreshToken, tokenType: 'Bearer', expiresIn: env.auth.accessTtl };
 }
 export async function login(input) {
-  const user = await User.unscoped().findOne({ where: { email: input.email }, attributes: ['id', 'fullName', 'email', 'phone', 'accountType', 'walletAddress', 'passwordHash', 'role', 'status', 'emailVerifiedAt', 'mfaSecretEncrypted', 'mfaEnabledAt', 'lastLoginAt', 'createdAt', 'updatedAt'] });
+  await verifyHuman(input.captchaToken, 'login');
+  const user = await User.unscoped().findOne({ where: { email: input.email }, attributes: ['id', 'fullName', 'email', 'phone', 'accountType', 'avatarKey', 'avatarMimeType', 'walletAddress', 'passwordHash', 'role', 'status', 'emailVerifiedAt', 'mfaSecretEncrypted', 'mfaEnabledAt', 'lastLoginAt', 'createdAt', 'updatedAt'] });
   if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) throw new AppError('Invalid email or password', 401, 'INVALID_CREDENTIALS');
   if (user.status !== 'active') throw new AppError('Your account is not active', 403, 'ACCOUNT_NOT_ACTIVE');
   if (env.email.required && !user.emailVerifiedAt) throw new AppError('Verify your email before signing in', 403, 'EMAIL_NOT_VERIFIED');
