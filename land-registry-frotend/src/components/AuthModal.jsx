@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, LogIn, UserPlus } from 'lucide-react';
+import { PasswordField } from './ui.jsx';
 import { useAuth } from '../context/useAuth.js';
 import { api } from '../api/client.js';
 import TurnstileWidget from './TurnstileWidget.jsx';
@@ -298,18 +299,18 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             </div>
           )}
 
-          {mode !== 'forgot' && mode !== 'mfaSetup' && mode !== 'verify' && <div>
-            <label style={labelStyle}>Password</label>
-            <input
-              style={inputStyle}
-              type="password"
+          {(mode === 'login' || mode === 'register' || mode === 'reset' || (mode === 'mfaSetup' && !mfaSetup)) && (
+            <PasswordField
+              label={mode === 'login' ? 'Password' : mode === 'mfaSetup' ? 'Confirm your password' : 'Password'}
               value={form.password}
               onChange={update('password')}
+              inputStyle={inputStyle}
               required
               minLength={mode === 'register' || mode === 'reset' ? 10 : 1}
               maxLength={128}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
-          </div>}
+          )}
 
           {mode === 'login' && <div><label style={labelStyle}>Authenticator code (privileged accounts)</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} /></div>}
           {mode === 'mfaSetup' && <div style={{ color: '#cbd5e1', fontSize: '0.9rem', overflowWrap: 'anywhere' }}>
@@ -319,13 +320,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
 
           {(mode === 'register' || mode === 'reset') && (
             <div>
-              <label style={labelStyle}>Confirm password</label>
-              <input
-                style={inputStyle}
-                type="password"
+              <PasswordField
+                label="Confirm password"
                 value={form.confirmPassword}
                 onChange={update('confirmPassword')}
                 required
+                inputStyle={inputStyle}
+                autoComplete="new-password"
               />
             </div>
           )}

@@ -1,4 +1,5 @@
-import { X } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
+import { useState } from 'react';
 
 export const colors = {
   bg: 'rgba(15, 23, 42, 0.88)',
@@ -86,6 +87,34 @@ export function Field({ label, hint, children, style }) {
       {children}
       {hint && <p style={{ margin: '4px 0 0 0', color: colors.muted, fontSize: '0.72rem' }}>{hint}</p>}
     </div>
+  );
+}
+
+export function PasswordField({ label, id, value, onChange, style, inputStyle: customInputStyle = inputStyle, ...props }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <Field label={label} style={style}>
+      <div style={{ position: 'relative' }}>
+        <input
+          {...props}
+          id={id}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          autoComplete={props.autoComplete || 'current-password'}
+          style={{ ...customInputStyle, paddingRight: '46px' }}
+        />
+        <button
+          type="button"
+          aria-label={visible ? `Hide ${label || 'password'}` : `Show ${label || 'password'}`}
+          aria-pressed={visible}
+          onClick={() => setVisible((current) => !current)}
+          style={{ position: 'absolute', top: '50%', right: '8px', transform: 'translateY(-50%)', display: 'grid', placeItems: 'center', width: 34, height: 34, padding: 0, border: 0, borderRadius: 7, background: 'transparent', color: '#94a3b8', cursor: 'pointer' }}
+        >
+          {visible ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+        </button>
+      </div>
+    </Field>
   );
 }
 

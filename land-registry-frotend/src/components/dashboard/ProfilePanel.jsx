@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Save, Wallet, Key, AlertTriangle, Trash2 } from 'lucide-react';
 import { api, tokenStore } from '../../api/client.js';
-import { Badge, Button, Card, Field, Notice, StatusBadge, inputStyle } from '../ui.jsx';
+import { Badge, Button, Card, Field, Notice, PasswordField, StatusBadge, inputStyle } from '../ui.jsx';
 
 const KENYA_COUNTIES = ['Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 'Embu', 'Garissa', 'Homa Bay', 'Isiolo', 'Kajiado', 'Kakamega', 'Kericho', 'Kiambu', 'Kilifi', 'Kirinyaga', 'Kisii', 'Kisumu', 'Kitui', 'Kwale', 'Laikipia', 'Lamu', 'Machakos', 'Makueni', 'Mandera', 'Marsabit', 'Meru', 'Migori', 'Mombasa', 'Murang’a', 'Nairobi', 'Nakuru', 'Nandi', 'Narok', 'Nyamira', 'Nyandarua', 'Nyeri', 'Samburu', 'Siaya', 'Taita-Taveta', 'Tana River', 'Tharaka-Nithi', 'Trans Nzoia', 'Turkana', 'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot'];
 
@@ -260,15 +260,9 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
 
       <Card title="Change password" subtitle="Your current password is required. All other active sessions will be signed out.">
         <form onSubmit={changePassword} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.8rem' }}>
-          <Field label="Current password *">
-            <input style={inputStyle} type="password" required minLength={1} maxLength={128} value={passwordForm.currentPassword} onChange={(event) => setPasswordForm({ ...passwordForm, currentPassword: event.target.value })} />
-          </Field>
-          <Field label="New password *">
-            <input style={inputStyle} type="password" required minLength={10} maxLength={128} value={passwordForm.newPassword} onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })} placeholder="10+ characters, with uppercase, lowercase and a number" />
-          </Field>
-          <Field label="Confirm new password *">
-            <input style={inputStyle} type="password" required minLength={10} maxLength={128} value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })} />
-          </Field>
+          <PasswordField label="Current password *" required minLength={1} maxLength={128} value={passwordForm.currentPassword} onChange={(event) => setPasswordForm({ ...passwordForm, currentPassword: event.target.value })} autoComplete="current-password" />
+          <PasswordField label="New password *" required minLength={10} maxLength={128} value={passwordForm.newPassword} onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })} placeholder="10+ characters, with uppercase, lowercase and a number" autoComplete="new-password" />
+          <PasswordField label="Confirm new password *" required minLength={10} maxLength={128} value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })} autoComplete="new-password" />
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
             <Button type="submit" disabled={passwordBusy}><Key size={14} /> {passwordBusy ? 'Changing…' : 'Change password'}</Button>
             <Button variant="ghost" onClick={() => setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })} disabled={passwordBusy}>Cancel</Button>

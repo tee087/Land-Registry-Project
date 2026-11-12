@@ -69,7 +69,7 @@ async function rawRequest(path, { method = 'GET', body, token, responseType = 'j
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError('Cannot reach the API server. Is the backend running?', {
+    throw new ApiError('We’re having trouble connecting. Please try again shortly.', {
       code: 'NETWORK_ERROR',
     });
   }
@@ -87,7 +87,10 @@ async function rawRequest(path, { method = 'GET', body, token, responseType = 'j
   const payload = await res.json().catch(() => null);
 
   if (!res.ok || !payload?.success) {
-    throw new ApiError(payload?.message || `Request failed (${res.status})`, {
+    const message = res.status >= 500
+      ? 'Something went wrong on our side. Please try again shortly.'
+      : payload?.message || 'We could not complete that request. Please check your information and try again.';
+    throw new ApiError(message, {
       status: res.status,
       code: payload?.error?.code || 'REQUEST_FAILED',
       details: payload?.error?.details || null,
