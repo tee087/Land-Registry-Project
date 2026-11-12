@@ -332,11 +332,11 @@ export default function App() {
       transition: 'background-image 0.6s ease-in-out'
     }}>
       {/* Top Navbar matching Ardhisasa Structure */}
-      <nav style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(16px)', color: '#fff', padding: '0.8rem 2rem', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <nav className="lrc-topbar" style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(16px)', color: '#fff', padding: '0.8rem 2rem', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', position: 'sticky', top: 0, zIndex: 100 }}>
+        <div className="lrc-topbar-inner" style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           
           {/* Logo Brand */}
-          <button type="button" aria-label={user ? 'Open your workspace' : 'Open the public home page'} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: 'transparent', color: 'inherit', border: 0, padding: 0, textAlign: 'left' }} onClick={() => setRequestedTab(user ? 'dashboard' : 'home')}>
+          <button className="lrc-brand" type="button" aria-label={user ? 'Open your workspace' : 'Open the public home page'} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: 'transparent', color: 'inherit', border: 0, padding: 0, textAlign: 'left' }} onClick={() => setRequestedTab(user ? 'dashboard' : 'home')}>
             <img src="/land-registrychain-logo.png" alt="LandRegistryChain" style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: '8px' }} />
             <div>
               <h1 style={{ fontSize: '1.3rem', margin: 0, fontWeight: 'bold', letterSpacing: '0.5px' }}>LandRegistryChain</h1>
@@ -345,7 +345,7 @@ export default function App() {
           </button>
 
           {/* Role-based navigation links */}
-          <nav aria-label="Primary" style={{ display: 'flex', gap: '6px', background: 'rgba(2, 6, 23, 0.6)', padding: '5px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <nav className="lrc-primary-nav" aria-label="Primary" style={{ display: 'flex', gap: '6px', background: 'rgba(2, 6, 23, 0.6)', padding: '5px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             {!user ? (
               <>
                 {[
@@ -389,7 +389,7 @@ export default function App() {
           </nav>
 
           {/* Account actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="lrc-account-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {!user ? (
               <>
                 <button
@@ -460,7 +460,7 @@ export default function App() {
         
         {/* PAGE 1: HOME PAGE — Department-based layout */}
         {activeTab === 'home' && !selectedDepartment && !selectedService && (
-          <div style={{ maxWidth: '1100px', margin: '3rem auto', padding: '0 1rem', textAlign: 'center' }}>
+          <div className="lrc-home-content" style={{ maxWidth: '1100px', margin: '3rem auto', padding: '0 1rem', textAlign: 'center' }}>
             <img src="/land-registrychain-logo.png" alt="LandRegistryChain — Secure land, trusted ownership, transparent Kenya" style={{ display: 'block', width: 'min(100%, 340px)', maxHeight: '380px', objectFit: 'contain', margin: '0 auto 1.5rem', borderRadius: '14px', boxShadow: '0 18px 60px rgba(0,0,0,.45)' }} />
             <h1 style={{ fontSize: '3rem', fontWeight: '800', color: '#fff', marginBottom: '1.5rem', textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}>
               LandRegistryChain – Secure Land Registry System
@@ -479,7 +479,7 @@ export default function App() {
             </section>
 
             {/* Service cards grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
+            <div className="lrc-service-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
               {[
                 {
                   icon: Search,
@@ -567,7 +567,7 @@ export default function App() {
             </div>
 
             {/* Info block about LandRegistryChain's unique capabilities */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+            <div className="lrc-about-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
               <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '1.5rem', textAlign: 'left' }}>
                 <ShieldCheck size={24} color="#38bdf8" style={{ marginBottom: '10px' }} />
                 <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.1rem', fontWeight: 600 }}>Optional Blockchain Anchoring</h3>
@@ -721,7 +721,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                  <div className="lrc-search-details-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                     <div>
                       <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: '0 0 4px 0' }}>Registered Owner</p>
                       <p style={{ margin: 0, fontWeight: 'bold', fontSize: '1.1rem', color: '#f8fafc' }}>{searchResult.ownerName} ({searchResult.owner})</p>

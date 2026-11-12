@@ -7,8 +7,12 @@
 html,
 body,
 #root {
+  width: 100%;
+  max-width: 100%;
   min-height: 100%;
 }
+
+html { overflow-x: clip; }
 
 body {
   margin: 0;
@@ -42,6 +46,67 @@ textarea {
   .lrc-search-result {
     padding: 1rem !important;
   }
+}
+
+@media (max-width: 760px) {
+  .lrc-topbar { padding: 0.55rem 0.7rem !important; }
+
+  .lrc-topbar-inner {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center !important;
+  }
+
+  .lrc-brand { min-width: 0; gap: 0.45rem !important; }
+  .lrc-brand img { width: 40px !important; height: 40px !important; }
+  .lrc-brand h1 { font-size: clamp(0.84rem, 4vw, 1.05rem) !important; letter-spacing: 0 !important; }
+  .lrc-brand span { display: block; font-size: 0.62rem !important; line-height: 1.2; }
+
+  .lrc-primary-nav {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 3px !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+  }
+
+  .lrc-primary-nav button {
+    min-width: 0;
+    padding: 7px 4px !important;
+    font-size: clamp(0.62rem, 2.7vw, 0.74rem) !important;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+
+  .lrc-account-actions { justify-self: end; min-width: 0; gap: 5px !important; }
+  .lrc-account-actions > button { padding: 7px 9px !important; font-size: 0.72rem !important; }
+  .lrc-account-actions > div { max-width: min(56vw, 250px); padding: 5px 7px !important; gap: 5px !important; }
+  .lrc-account-actions > div span { max-width: 30vw !important; }
+
+  .lrc-home-content,
+  .lrc-page-content { width: 100%; min-width: 0; }
+
+  .lrc-service-grid,
+  .lrc-search-details-grid,
+  .lrc-about-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .lrc-home-content { margin-top: 1.25rem !important; }
+  .lrc-home-content h2 { font-size: clamp(1.65rem, 7vw, 2.4rem) !important; line-height: 1.14 !important; }
+  .lrc-home-content > p { font-size: 0.98rem !important; line-height: 1.6 !important; }
+}
+
+@media (max-width: 380px) {
+  .lrc-topbar { padding-inline: 0.45rem !important; }
+  .lrc-brand img { width: 34px !important; height: 34px !important; }
+  .lrc-brand span { display: none; }
+  .lrc-primary-nav button { font-size: 0.6rem !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
