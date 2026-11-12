@@ -33,6 +33,24 @@ const SvgIcons = {
   ),
 };
 
+function YouTubeBrandIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="1" y="4" width="22" height="16" rx="5" fill="#FF0033" />
+      <path d="M10 8.25v7.5L16.5 12 10 8.25Z" fill="#fff" />
+    </svg>
+  );
+}
+
+function FacebookBrandIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="1" y="1" width="22" height="22" rx="5" fill="#0866FF" />
+      <path d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.7V3.9c-.3 0-1.3-.1-2.5-.1-2.5 0-4.2 1.5-4.2 4.3V10H7.3v3h2.8v8h3.4Z" fill="#fff" />
+    </svg>
+  );
+}
+
 export default function Footer({ onNavigate }) {
   const handleLink = useCallback((tab) => {
     if (onNavigate) onNavigate(tab);
@@ -253,7 +271,11 @@ export default function Footer({ onNavigate }) {
               }}
             >
               {SOCIAL_LINKS.map((social) => {
-                const Icon = SvgIcons[social.id];
+                const Icon = social.id === 'youtube'
+                  ? YouTubeBrandIcon
+                  : social.id === 'facebook'
+                    ? FacebookBrandIcon
+                    : SvgIcons[social.id];
                 return (
                   <a
                     key={social.id}
@@ -305,14 +327,14 @@ export default function Footer({ onNavigate }) {
           background: FOOTER_BOTTOM_BG,
           color: TEXT_COLOR,
           fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
-          padding: '16px 24px',
+          padding: '8px 16px',
           textAlign: 'center',
         }}
       >
         <p
           style={{
             margin: 0,
-            fontSize: '0.85rem',
+            fontSize: '0.78rem',
             fontWeight: 400,
             color: TEXT_COLOR,
             letterSpacing: '0.2px',
