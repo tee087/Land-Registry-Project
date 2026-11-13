@@ -204,8 +204,19 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
         onClose();
       }
     } catch (submitError) {
-      if (mode === 'login') setMfaRequired(submitError.code === 'MFA_REQUIRED');
-      setError(submitError.message);
+      if (mode === 'login' && submitError.code === 'MFA_REQUIRED') {
+        if (mfaRequired) {
+          setError('That code was not accepted. Enter the current six-digit code from your authenticator app.');
+          setNotice('');
+        } else {
+          setMfaRequired(true);
+          setForm((current) => ({ ...current, mfaCode: '' }));
+          setError(null);
+          setNotice('Password accepted. Enter the current six-digit code from your authenticator app to finish signing in.');
+        }
+      } else {
+        setError(submitError.message);
+      }
       // Error is surfaced by the auth context / thrown validation message below.
     } finally {
       setBusy(false);

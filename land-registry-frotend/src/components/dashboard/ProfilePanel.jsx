@@ -443,10 +443,19 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
           </form>
         ) : (
           <form onSubmit={beginMfaSetup} className="lrc-mfa-setup-form">
+            <div className="lrc-mfa-start-guide">
+              <strong>Turn on two-step sign-in</strong>
+              <ol>
+                <li>Enter your current LandRegistryChain password below.</li>
+                <li>Choose <b>Generate setup key and QR code</b>.</li>
+                <li>Add the key to your authenticator app, then enter its six-digit code to enable protection.</li>
+              </ol>
+              <small>Two-step sign-in stays off until the six-digit code is verified.</small>
+            </div>
             <Field label="Confirm your password *" hint="Confirm your password before creating an authenticator secret. For Google sign-in accounts, set a password first using the recovery link above.">
               <PasswordField value={mfaPassword} onChange={(event) => setMfaPassword(event.target.value)} required minLength={1} maxLength={128} autoComplete="current-password" />
             </Field>
-            <Button type="submit" disabled={mfaBusy}><ShieldCheck size={15} /> {mfaBusy ? 'Preparing…' : 'Set up authenticator app'}</Button>
+            <Button type="submit" disabled={mfaBusy}><ShieldCheck size={15} /> {mfaBusy ? 'Preparing…' : 'Generate setup key and QR code'}</Button>
           </form>
         )) : null}
         {mfaError && <Notice tone="error" style={{ marginTop: '0.8rem' }}>{mfaError}</Notice>}
