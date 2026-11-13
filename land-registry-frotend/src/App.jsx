@@ -505,6 +505,20 @@ export default function App() {
             <p style={{ fontSize: '0.95rem', color: '#94a3b8', marginBottom: '2.5rem', textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>
               Choose a service to get started.
             </p>
+            <form className="lrc-search-form lrc-home-search-form" onSubmit={(event) => { setRequestedTab('search'); void handleSearch(event); }}>
+              <input
+                className="lrc-search-input"
+                type="search"
+                aria-label="Search land by title number or parcel number"
+                placeholder="Search for land by title or parcel number…"
+                value={parcelId}
+                onChange={(event) => setParcelId(event.target.value)}
+                required
+              />
+              <button type="submit" disabled={searching} aria-busy={searching}>
+                <Search size={17} /> {searching ? 'Searching…' : 'Search'}
+              </button>
+            </form>
 
             {/* Service cards grid */}
             <div className="lrc-service-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
@@ -513,83 +527,62 @@ export default function App() {
                   icon: Search,
                   label: 'Search Land',
                   description: 'Find land records and ownership details.',
+                  image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1000&auto=format&fit=crop',
                   tab: 'search',
                 },
                 {
                   icon: FileText,
                   label: 'Land Registration',
                   description: 'Register land and submit applications.',
+                  image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=1000&auto=format&fit=crop',
                   tab: 'services',
                 },
                 {
                   icon: ArrowRight,
                   label: 'Land Transfer',
                   description: 'Apply to transfer land ownership.',
+                  image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?q=80&w=1000&auto=format&fit=crop',
                   tab: 'services',
                 },
                 {
                   icon: ShieldCheck,
                   label: 'Title Verification',
                   description: 'Check land title information and documents.',
+                  image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=1000&auto=format&fit=crop',
                   tab: 'search',
                 },
                 {
                   icon: MapPin,
                   label: 'Land Mapping',
                   description: 'View saved parcel coordinate points. These are not surveyed boundaries.',
+                  image: 'https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=1000&auto=format&fit=crop',
                   tab: 'gis',
                 },
                 {
                   icon: Shield,
                   label: 'Security & Records',
                   description: 'Protect land records and track changes.',
+                  image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop',
                   tab: 'dashboard',
                 },
               ].map((card) => {
                 const Icon = card.icon;
                 return (
-                  <div
+                  <button
                     key={card.label}
+                    type="button"
+                    className="lrc-service-card"
+                    style={{ '--lrc-service-image': `url("${card.image}")` }}
                     onClick={() => setRequestedTab(card.tab)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && setRequestedTab(card.tab)}
-                    style={{
-                      background: 'rgba(15, 23, 42, 0.85)',
-                      backdropFilter: 'blur(16px)',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      borderRadius: '16px',
-                      padding: '1.75rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      textAlign: 'left',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                    }}
                   >
-                    <div
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        borderRadius: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Icon size={22} color="#38bdf8" />
-                    </div>
-                    <h3 style={{ margin: '0 0 8px 0', fontSize: '1.15rem', color: '#fff', fontWeight: 600, letterSpacing: '0.2px' }}>
-                      {card.label}
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.5' }}>
-                      {card.description}
-                    </p>
-                  </div>
+                    <span className="lrc-service-card-icon"><Icon size={17} aria-hidden="true" /></span>
+                    <span className="lrc-service-card-arrow" aria-hidden="true"><ArrowRight size={16} /></span>
+                    <span className="lrc-service-card-copy">
+                      <strong>{card.label}</strong>
+                      <span className="lrc-service-card-description">{card.description}</span>
+                      <span className="lrc-service-card-open">Open <ArrowRight size={13} aria-hidden="true" /></span>
+                    </span>
+                  </button>
                 );
               })}
             </div>
@@ -717,6 +710,7 @@ export default function App() {
             <form className="lrc-search-form" onSubmit={handleSearch} style={{ display: 'flex', gap: '12px', marginBottom: '2rem' }}>
               <input 
                 type="text" 
+                className="lrc-search-input"
                 aria-label="Parcel number to search"
                 aria-required="true"
                 required
