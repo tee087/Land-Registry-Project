@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import { Op } from 'sequelize';
 import env from '../../config/environment.js';
 import User from '../../models/User.js';
@@ -13,6 +14,7 @@ import { verifyHuman } from '../../services/human-verification.service.js';
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const privilegedRoles = new Set(['registrar', 'administrator', 'investigator', 'auditor']);
+const googleClient = env.googleClientId ? new OAuth2Client(env.googleClientId) : null;
 function encryptionKey() { return Buffer.from(env.mfaEncryptionKey || '', 'hex'); }
 function encryptSecret(secret) {
   const iv = crypto.randomBytes(12); const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
@@ -28,9 +30,9 @@ const publicUser = (user) => ({ id: user.id, fullName: user.fullName, email: use
 function accessToken(user) {
   return jwt.sign({ role: user.role }, env.auth.accessSecret, { subject: String(user.id), expiresIn: env.auth.accessTtl, issuer: 'land-registry-api', audience: 'land-registry-client' });
 }
-async function issueRefreshToken(user, transaction) {
+async function issueRefreshToken(user, transaction, ttlDays = env.auth.refreshTtlDays) {
   const token = crypto.randomBytes(48).toString('base64url');
-  const expiresAt = new Date(Date.now() + env.auth.refreshTtlDays * 86400000);
+  const expiresAt = new Date(Date.now() + ttlDays * 86400000);
   await RefreshToken.create({ userId: user.id, tokenHash: hashToken(token), expiresAt }, { transaction });
   return token;
 }
@@ -64,8 +66,49 @@ export async function login(input) {
   }
   user.lastLoginAt = new Date();
   await user.save();
-  const refreshToken = await issueRefreshToken(user);
+  const refreshToken = await issueRefreshToken(user, undefined, input.rememberMe ? 30 : 1);
   return { user: publicUser(user), accessToken: accessToken(user), refreshToken, tokenType: 'Bearer', expiresIn: env.auth.accessTtl, mfaEnrollmentRequired: env.isProduction && privilegedRoles.has(user.role) && !user.mfaEnabledAt };
+}
+
+export async function googleAuth(input) {
+  await verifyHuman(input.captchaToken, input.accountType ? 'register' : 'login');
+  if (!googleClient) throw new AppError('Google sign-in is not configured yet.', 503, 'GOOGLE_AUTH_UNAVAILABLE');
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({ idToken: input.credential, audience: env.googleClientId });
+  } catch {
+    throw new AppError('Google could not verify this sign-in. Please try again.', 401, 'GOOGLE_AUTH_FAILED');
+  }
+  const identity = ticket.getPayload();
+  if (!identity?.sub || !identity.email || identity.email_verified !== true) {
+    throw new AppError('Use a Google account with a verified email address.', 401, 'GOOGLE_EMAIL_UNVERIFIED');
+  }
+
+  let user = await User.unscoped().findOne({ where: { email: identity.email.toLowerCase() } });
+  if (!user) {
+    if (!input.accountType || !input.phone) {
+      throw new AppError('Choose an account type and enter your phone number to finish Google registration.', 422, 'GOOGLE_REGISTRATION_DETAILS_REQUIRED');
+    }
+    user = await User.create({
+      fullName: String(identity.name || identity.email).slice(0, 120),
+      email: identity.email.toLowerCase(),
+      phone: input.phone,
+      accountType: input.accountType,
+      passwordHash: await bcrypt.hash(crypto.randomBytes(48).toString('base64url'), env.auth.bcryptRounds),
+      role: 'landowner', status: 'active', emailVerifiedAt: new Date(),
+    });
+  } else {
+    if (user.status !== 'active') throw new AppError('Your account is not active. Contact support.', 403, 'ACCOUNT_NOT_ACTIVE');
+    if (!user.emailVerifiedAt) { user.emailVerifiedAt = new Date(); user.status = 'active'; await user.save(); }
+    if (privilegedRoles.has(user.role) && user.mfaEnabledAt) {
+      throw new AppError('Use your password and authenticator code to sign in to this privileged account.', 403, 'GOOGLE_MFA_REQUIRED');
+    }
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+  const refreshToken = await issueRefreshToken(user, undefined, input.rememberMe ? 30 : 1);
+  return { user: publicUser(user), accessToken: accessToken(user), refreshToken, tokenType: 'Bearer', expiresIn: env.auth.accessTtl };
 }
 export async function setupMfa(userId, password) {
   const user = await User.unscoped().findByPk(userId, { attributes: ['id','email','passwordHash','role','mfaSecretEncrypted','mfaEnabledAt'] });
@@ -165,7 +208,8 @@ export async function verifyEmailCode(rawEmail, code) {
     user.emailVerifiedAt = new Date();
     user.status = 'active';
     await user.save({ transaction });
-    return { verified: true };
+    const refreshToken = await issueRefreshToken(user, transaction);
+    return { verified: true, user: publicUser(user), accessToken: accessToken(user), refreshToken, tokenType: 'Bearer', expiresIn: env.auth.accessTtl };
   });
 }
 

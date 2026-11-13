@@ -25,7 +25,7 @@ const labelStyle = {
 };
 
 export default function AuthModal({ open, onClose, initialMode = 'login' }) {
-  const { login, register, error, setError } = useAuth();
+  const { login, register, error, setError, googleAuth, acceptSession } = useAuth();
   const dialogRef = useRef(null);
   const [resetToken, setResetToken] = useState(new URLSearchParams(window.location.hash.slice(1)).get('token') || '');
   const [mode, setMode] = useState(window.location.pathname === '/reset-password' ? 'reset' : initialMode);
@@ -33,6 +33,8 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
   const [resendBusy, setResendBusy] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaReset, setCaptchaReset] = useState(0);
+  const [rememberMe, setRememberMe] = useState(false);
+  const googleButtonRef = useRef(null);
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
     fullName: '',
@@ -55,6 +57,52 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
     dialogRef.current?.querySelector('input')?.focus();
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!open || !['login', 'register'].includes(mode) || !clientId || !googleButtonRef.current) return undefined;
+    let cancelled = false;
+    let script = document.getElementById('google-identity-services');
+    const renderGoogleButton = () => {
+      if (cancelled || !window.google?.accounts?.id || !googleButtonRef.current) return;
+      googleButtonRef.current.replaceChildren();
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async ({ credential }) => {
+          setBusy(true);
+          setError(null);
+          try {
+            const session = await googleAuth({
+              credential,
+              ...(mode === 'register' ? { accountType: form.accountType, phone: form.phone.trim() } : {}),
+              ...(captchaToken ? { captchaToken } : {}),
+              rememberMe,
+            });
+            if (session.mfaEnrollmentRequired) setNotice('Google sign-in is unavailable for privileged accounts. Sign in with your password and authenticator code.');
+            else onClose();
+          } catch (googleError) {
+            setError(googleError.message || 'Google sign-in failed. Please try again.');
+          } finally {
+            setBusy(false);
+          }
+        },
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, { theme: 'filled_blue', size: 'large', text: 'continue_with', shape: 'pill', width: Math.min(340, Math.max(220, googleButtonRef.current.clientWidth)) });
+    };
+    if (window.google?.accounts?.id) renderGoogleButton();
+    else {
+      if (!script) {
+        script = document.createElement('script');
+        script.id = 'google-identity-services';
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+      script.addEventListener('load', renderGoogleButton, { once: true });
+    }
+    return () => { cancelled = true; script?.removeEventListener('load', renderGoogleButton); };
+  }, [open, mode, form.accountType, form.phone, captchaToken, rememberMe, googleAuth, setError, onClose]);
 
   if (!open) return null;
 
@@ -83,7 +131,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
     setBusy(true);
     try {
       if (mode === 'login') {
-        const result = await login(form.email, form.password, form.mfaCode, captchaToken);
+        const result = await login(form.email, form.password, form.mfaCode, captchaToken, rememberMe);
         if (result.mfaEnrollmentRequired) setMode('mfaSetup');
         else onClose();
       } else if (mode === 'mfaSetup') {
@@ -106,12 +154,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
         setMode('login');
         window.history.replaceState({}, '', '/');
       } else if (mode === 'verify') {
-        await api.verifyEmailCode(form.email, form.emailCode);
-        setNotice('Email verified. You can sign in now.');
+        const { data } = await api.verifyEmailCode(form.email, form.emailCode);
+        acceptSession(data);
+        setNotice('Email verified. Your account is ready.');
         setForm((prev) => ({ ...prev, password: '', emailCode: '' }));
         sessionStorage.removeItem('lrc.verificationEmail');
-        setMode('login');
-        window.history.pushState({}, '', '/login');
+        window.history.pushState({}, '', '/');
+        onClose();
       } else if (mode === 'register') {
         if (form.password !== form.confirmPassword) {
           throw new Error('Passwords do not match');
@@ -312,6 +361,13 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             />
           )}
 
+          {mode === 'login' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#cbd5e1', fontSize: '0.84rem', textAlign: 'left' }}>
+              <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+              Remember me on this device (up to 30 days)
+            </label>
+          )}
+
           {mode === 'login' && <div><label style={labelStyle}>Authenticator code (privileged accounts)</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} /></div>}
           {mode === 'mfaSetup' && <div style={{ color: '#cbd5e1', fontSize: '0.9rem', overflowWrap: 'anywhere' }}>
             <p>Privileged accounts must enroll an authenticator before using registry functions.</p>
@@ -336,6 +392,14 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
           )}
           {(mode === 'login' || mode === 'register') && import.meta.env.PROD && !import.meta.env.VITE_TURNSTILE_SITE_KEY && (
             <p role="status" style={{ color: '#fbbf24', fontSize: '0.8rem', margin: 0 }}>Human verification is not configured. Sign in and registration will be unavailable until the site key is added.</p>
+          )}
+
+          {(mode === 'login' || mode === 'register') && import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+            <>
+              <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: '0.75rem' }}><span style={{ height: 1, flex: 1, background: 'rgba(148,163,184,.35)' }} />OR CONTINUE WITH<span style={{ height: 1, flex: 1, background: 'rgba(148,163,184,.35)' }} /></div>
+              <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 42 }} />
+              {mode === 'register' && <p style={{ color: '#94a3b8', fontSize: '0.72rem', margin: 0, textAlign: 'center' }}>Choose your account type and enter your required phone number above to register with Google.</p>}
+            </>
           )}
 
           {(error || localError) && (

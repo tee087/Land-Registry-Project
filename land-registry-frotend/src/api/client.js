@@ -224,6 +224,7 @@ export const api = {
   // Auth / profile
   register: (input) => request('/auth/register', { method: 'POST', body: input }),
   login: (input) => request('/auth/login', { method: 'POST', body: input }),
+  googleAuth: (input) => request('/auth/google', { method: 'POST', body: input }),
   verifyEmail: (token) => request('/auth/verify-email', { method: 'POST', body: { token } }),
   verifyEmailCode: (email, code) => request('/auth/verify-email', { method: 'POST', body: { email, code } }),
   requestEmailVerification: (email) => request('/auth/email-verification/request', { method: 'POST', body: { email } }),

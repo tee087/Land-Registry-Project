@@ -3,6 +3,7 @@ import { sendSuccess } from '../../utils/responseHandler.js';
 import { recordAudit } from '../../services/audit.service.js';
 export const register = async (req, res) => sendSuccess(res, { data: await service.register(req.body), message: 'Account created', statusCode: 201 });
 export const login = async (req, res) => sendSuccess(res, { data: await service.login(req.body), message: 'Login successful' });
+export const google = async (req, res) => sendSuccess(res, { data: await service.googleAuth(req.body), message: 'Google sign-in successful' });
 export const refresh = async (req, res) => sendSuccess(res, { data: await service.refresh(req.body.refreshToken), message: 'Token refreshed' });
 export const logout = async (req, res) => { await service.logout(req.body?.refreshToken); return sendSuccess(res, { message: 'Logged out' }); };
 export const me = async (req, res) => sendSuccess(res, { data: service.publicUser(req.user), message: 'Current user' });
@@ -10,7 +11,7 @@ export const verifyEmail = async (req, res) => sendSuccess(res, {
   data: req.body.code
     ? await service.verifyEmailCode(req.body.email, req.body.code)
     : await service.verifyEmail(req.body.token),
-  message: 'Email verified. You can now sign in.',
+  message: 'Email verified. Your account is ready.',
 });
 export const requestEmailVerification = async (req, res) => sendSuccess(res, { data: await service.requestEmailVerification(req.body.email), message: 'If verification is needed for that account, a code will be sent.' });
 export const requestPasswordReset = async (req, res) => sendSuccess(res, { data: await service.requestPasswordReset(req.body.email), message: 'If an active account matches that address, a reset link will be sent.' });

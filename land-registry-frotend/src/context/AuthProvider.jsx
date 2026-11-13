@@ -38,19 +38,25 @@ export function AuthProvider({ children }) {
     setError('Your session has expired. Please sign in again.');
   }), []);
 
-  const login = useCallback(async (email, password, mfaCode, captchaToken) => {
+  const acceptSession = useCallback((data) => {
+    tokenStore.set(data);
+    setUser(data.user);
+    setSessionExpired(false);
+    return data;
+  }, []);
+
+  const login = useCallback(async (email, password, mfaCode, captchaToken, rememberMe = false) => {
     setError(null);
     setSessionExpired(false);
     try {
-      const { data } = await api.login({ email, password, ...(mfaCode ? { mfaCode } : {}), ...(captchaToken ? { captchaToken } : {}) });
-      tokenStore.set(data);
-      setUser(data.user);
+      const { data } = await api.login({ email, password, rememberMe, ...(mfaCode ? { mfaCode } : {}), ...(captchaToken ? { captchaToken } : {}) });
+      acceptSession(data);
       return data;
     } catch (err) {
       setError(err.message);
       throw err;
     }
-  }, []);
+  }, [acceptSession]);
 
   const register = useCallback(async (input) => {
     setError(null);
@@ -67,6 +73,19 @@ export function AuthProvider({ children }) {
       throw err;
     }
   }, []);
+
+  const googleAuth = useCallback(async (input) => {
+    setError(null);
+    setSessionExpired(false);
+    try {
+      const { data } = await api.googleAuth(input);
+      acceptSession(data);
+      return data;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, [acceptSession]);
 
   const refreshUser = useCallback(async () => {
     const { data } = await api.me();
@@ -88,8 +107,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, error, sessionExpired, setError, login, register, logout, refreshUser }),
-    [user, loading, error, sessionExpired, login, register, logout, refreshUser]
+    () => ({ user, loading, error, sessionExpired, setError, login, register, googleAuth, logout, refreshUser, acceptSession }),
+    [user, loading, error, sessionExpired, login, register, googleAuth, logout, refreshUser, acceptSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

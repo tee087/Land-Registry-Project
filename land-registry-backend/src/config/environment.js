@@ -38,6 +38,7 @@ const rawEnv = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(14).default(12),
   FRONTEND_URL: optionalNonEmpty(z.string().url()),
+  GOOGLE_CLIENT_ID: optionalNonEmpty(z.string()),
   SMTP_HOST: optionalNonEmpty(z.string()), SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: optionalNonEmpty(z.string()), SMTP_PASSWORD: optionalNonEmpty(z.string()), SMTP_FROM: optionalNonEmpty(z.string().email()),
   REDIS_URL: optionalNonEmpty(z.string().url()),
@@ -58,6 +59,7 @@ const env = Object.freeze({
   port: parsed.PORT,
   auth: Object.freeze({ accessSecret: process.env.JWT_ACCESS_SECRET || (nodeEnv === 'production' ? '' : 'development-only-secret-change-this-32-chars'), accessTtl: parsed.JWT_ACCESS_TTL, refreshTtlDays: parsed.REFRESH_TOKEN_TTL_DAYS, bcryptRounds: parsed.BCRYPT_ROUNDS }),
   frontendUrl: parsed.FRONTEND_URL || 'http://localhost:5173',
+  googleClientId: parsed.GOOGLE_CLIENT_ID,
   email: Object.freeze({ required: parsed.REQUIRE_EMAIL_VERIFICATION ? parsed.REQUIRE_EMAIL_VERIFICATION === 'true' : isProduction, host: parsed.SMTP_HOST, port: parsed.SMTP_PORT, user: parsed.SMTP_USER, password: parsed.SMTP_PASSWORD, from: parsed.SMTP_FROM }),
   redisUrl: parsed.REDIS_URL,
   turnstile: Object.freeze({
