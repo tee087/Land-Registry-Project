@@ -1,26 +1,43 @@
 import { useEffect, useState } from 'react';
-import { Save, Wallet, Key, AlertTriangle, Trash2 } from 'lucide-react';
+import { Camera, Save, Wallet, Key, AlertTriangle, Trash2, ShieldCheck, Sun, Moon, LogOut, Smartphone, MailCheck, CalendarDays, UserRound, Settings2, CheckCircle2 } from 'lucide-react';
 import { api, tokenStore } from '../../api/client.js';
 import { Badge, Button, Card, Field, Notice, PasswordField, StatusBadge, inputStyle } from '../ui.jsx';
 
 const KENYA_COUNTIES = ['Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 'Embu', 'Garissa', 'Homa Bay', 'Isiolo', 'Kajiado', 'Kakamega', 'Kericho', 'Kiambu', 'Kilifi', 'Kirinyaga', 'Kisii', 'Kisumu', 'Kitui', 'Kwale', 'Laikipia', 'Lamu', 'Machakos', 'Makueni', 'Mandera', 'Marsabit', 'Meru', 'Migori', 'Mombasa', 'Murang’a', 'Nairobi', 'Nakuru', 'Nandi', 'Narok', 'Nyamira', 'Nyandarua', 'Nyeri', 'Samburu', 'Siaya', 'Taita-Taveta', 'Tana River', 'Tharaka-Nithi', 'Trans Nzoia', 'Turkana', 'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot'];
 
-export default function ProfilePanel({ user, refreshUser, walletAccount, onConnectWallet }) {
+export default function ProfilePanel({ user, refreshUser, walletAccount, onConnectWallet, theme = 'dark', setTheme, density = 'comfortable', setDensity, onLogout }) {
   const [form, setForm] = useState({ fullName: '', phone: '', walletAddress: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [avatarSrc, setAvatarSrc] = useState('');
+  const [avatarVersion, setAvatarVersion] = useState(0);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState(null);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordError, setPasswordError] = useState(null);
   const [passwordNotice, setPasswordNotice] = useState(null);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryError, setRecoveryError] = useState(null);
+  const [recoveryNotice, setRecoveryNotice] = useState(null);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyError, setVerifyError] = useState(null);
+  const [verifyNotice, setVerifyNotice] = useState(null);
+  const [mfaSetup, setMfaSetup] = useState(null);
+  const [mfaPassword, setMfaPassword] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaError, setMfaError] = useState(null);
+  const [mfaNotice, setMfaNotice] = useState(null);
   const [reviewRequest, setReviewRequest] = useState({ county: '', applicationType: 'platform_committee', boardName: '', appointingAuthority: '', appointmentReference: '', term: '', experience: '', documentsReady: false });
   const [reviewBusy, setReviewBusy] = useState(false);
   const [reviewError, setReviewError] = useState(null);
   const [reviewNotice, setReviewNotice] = useState(null);
+  const canUseMfa = ['administrator', 'registrar', 'investigator', 'auditor'].includes(user?.role);
+  const completionItems = [Boolean(user?.fullName), Boolean(user?.emailVerifiedAt), Boolean(user?.phone), Boolean(user?.hasAvatar)];
+  const completion = Math.round((completionItems.filter(Boolean).length / completionItems.length) * 100);
+  const formatProfileDate = (value) => value ? new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium' }).format(new Date(value)) : 'Not available';
 
   useEffect(() => {
     if (!user) return undefined;
@@ -56,7 +73,7 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [user?.id, user?.hasAvatar]);
+  }, [user?.id, user?.hasAvatar, avatarVersion]);
 
   const uploadAvatar = async (event) => {
     const file = event.target.files?.[0];
@@ -75,6 +92,7 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
     try {
       await api.uploadProfileAvatar(file);
       await refreshUser();
+      setAvatarVersion((version) => version + 1);
       setNotice('Profile photo updated.');
     } catch (err) {
       setAvatarError(err.message || 'Unable to upload the profile photo.');
@@ -144,6 +162,71 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
     }
   };
 
+  const beginMfaSetup = async (event) => {
+    event.preventDefault();
+    setMfaBusy(true);
+    setMfaError(null);
+    setMfaNotice(null);
+    try {
+      const { data } = await api.setupMfa(mfaPassword);
+      setMfaSetup(data);
+      setMfaPassword('');
+      setMfaNotice('Add this account in your authenticator app, then confirm with its current code.');
+    } catch (err) {
+      setMfaError(err.message || 'Unable to start authenticator setup.');
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const sendPasswordReset = async () => {
+    setRecoveryBusy(true);
+    setRecoveryError(null);
+    setRecoveryNotice(null);
+    try {
+      await api.requestPasswordReset(user.email);
+      setRecoveryNotice(`If password recovery is available for ${user.email}, a secure reset link will be sent.`);
+    } catch (err) {
+      setRecoveryError(err.message || 'Unable to request a password reset right now.');
+    } finally {
+      setRecoveryBusy(false);
+    }
+  };
+
+  const resendVerification = async () => {
+    setVerifyBusy(true);
+    setVerifyError(null);
+    setVerifyNotice(null);
+    try {
+      const { data } = await api.requestEmailVerification(user.email);
+      setVerifyNotice(data?.emailSent ? `Verification email sent to ${user.email}.` : `If verification is needed, an email will be sent to ${user.email}.`);
+    } catch (err) {
+      setVerifyError(err.message || 'Could not send a verification email.');
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
+
+  const scrollToProfileSection = (sectionId) => document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const confirmMfaSetup = async (event) => {
+    event.preventDefault();
+    setMfaBusy(true);
+    setMfaError(null);
+    setMfaNotice(null);
+    try {
+      await api.enableMfa(mfaCode);
+      await refreshUser();
+      setMfaSetup(null);
+      setMfaCode('');
+      setMfaNotice('Authenticator app protection is enabled for your next sign-in.');
+    } catch (err) {
+      setMfaError(err.message || 'That authenticator code could not be verified.');
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
   const useConnectedWallet = () => {
     if (walletAccount) setForm((current) => ({ ...current, walletAddress: walletAccount }));
   };
@@ -165,26 +248,48 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <Card title="Profile" subtitle="Update your display name, phone number, account category, and linked EVM wallet address.">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-          {avatarSrc ? (
-            <img src={avatarSrc} alt={`${user?.fullName || 'Account'} profile`} width="88" height="88" style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover', border: '2px solid #38bdf8' }} />
-          ) : (
-            <div aria-label="No profile photo" style={{ width: 88, height: 88, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'rgba(56,189,248,.15)', border: '1px solid rgba(56,189,248,.45)', color: '#7dd3fc', fontSize: '1.8rem', fontWeight: 800 }}>
-              {(user?.fullName || user?.email || '?').slice(0, 1).toUpperCase()}
-            </div>
-          )}
+    <div className="lrc-profile-page">
+      <div className="lrc-profile-page-heading">
+        <div><span className="lrc-workspace-eyebrow">ACCOUNT SETTINGS</span><h2>Profile & preferences</h2><p>Manage your identity, security, and workspace experience.</p></div>
+        <Badge tone={user?.emailVerifiedAt ? 'success' : 'warning'}>{user?.emailVerifiedAt ? 'Verified account' : 'Email verification needed'}</Badge>
+      </div>
+      <nav className="lrc-profile-section-nav" aria-label="Profile settings sections">
+        {[
+          ['profile-personal', 'Personal details'],
+          ['profile-account', 'Account'],
+          ['profile-preferences', 'Preferences'],
+          ['profile-security', 'Security'],
+          ...(!['administrator', 'registrar'].includes(user?.role) ? [['profile-board-access', 'Board access']] : []),
+        ].map(([sectionId, label]) => <button key={sectionId} type="button" onClick={() => scrollToProfileSection(sectionId)}>{label}</button>)}
+      </nav>
+
+      <Card id="profile-personal" title="Personal details" subtitle="Keep your contact details current so registry updates can reach you.">
+        <div className="lrc-profile-identity">
+          <div className="lrc-profile-avatar-wrap">
+            {avatarSrc ? (
+              <img src={avatarSrc} alt={`${user?.fullName || 'Account'} profile`} width="112" height="112" className="lrc-profile-avatar" />
+            ) : (
+              <div aria-label="No profile photo" className="lrc-profile-avatar lrc-profile-avatar-placeholder">
+                {(user?.fullName || user?.email || '?').slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <label className="lrc-profile-camera" title="Add or change profile photo">
+              <Camera size={17} aria-hidden="true" />
+              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarBusy} onChange={uploadAvatar} aria-label="Add or change profile photo" />
+            </label>
+          </div>
           <div>
             <strong style={{ color: '#f8fafc', display: 'block' }}>Profile photo</strong>
-            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>JPG, PNG, or WebP. Maximum 512 KB.</span>
+            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{avatarBusy ? 'Saving your photo…' : 'JPG, PNG, or WebP · Up to 512 KB'}</span>
             <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-              <label style={{ display: 'grid', gap: '4px', color: '#cbd5e1', fontSize: '0.78rem' }}>
-                {avatarBusy ? 'Saving photo…' : 'Choose a photo'}
-                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarBusy} onChange={uploadAvatar} aria-label="Choose profile photo" />
-              </label>
               {user?.hasAvatar && <Button type="button" variant="secondary" disabled={avatarBusy} onClick={removeAvatar}><Trash2 size={14} /> Remove photo</Button>}
             </div>
+            <p style={{ color: '#94a3b8', fontSize: '0.76rem', margin: '8px 0 0' }}>Your photo is saved to your account and will still be here next time you sign in.</p>
+          </div>
+          <div className="lrc-profile-completion">
+            <div><span>Profile completion</span><strong>{completion}%</strong></div>
+            <div className="lrc-profile-progress" role="progressbar" aria-label="Profile completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow={completion}><span style={{ width: `${completion}%` }} /></div>
+            <small>{completionItems.filter(Boolean).length} of 4 profile details complete</small>
           </div>
         </div>
         {avatarError && <Notice tone="error" style={{ marginBottom: '0.8rem' }}>{avatarError}</Notice>}
@@ -198,7 +303,10 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
             <input style={inputStyle} required minLength={2} maxLength={120} value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} />
           </Field>
           <Field label="Phone">
-            <input style={inputStyle} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+254700000000" />
+            <input style={inputStyle} type="tel" autoComplete="tel" pattern="\+?[0-9]{9,15}" title="Use digits only: 0712345678 or +254712345678." value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+254712345678" />
+          </Field>
+          <Field label="Email address" hint="Email changes are managed by account support.">
+            <input style={inputStyle} type="email" value={user?.email || ''} readOnly aria-readonly="true" />
           </Field>
           <Field label="Wallet address" hint="Optional EVM wallet link for account reference. It does not authenticate you or approve a land transfer." style={{ gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -222,8 +330,70 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
         )}
       </Card>
 
+      <Card id="profile-account" title="Account overview" subtitle="Your registered identity and access state on this platform.">
+        <div className="lrc-profile-account-grid">
+          <div><span>Account type</span><strong><UserRound size={15} />{user?.accountType?.replace('_', ' and ') || 'Registry staff'}</strong></div>
+          <div><span>Platform role</span><strong>{user?.role || 'Landowner'}</strong></div>
+          <div><span>Account status</span><strong><StatusBadge status={user?.status} /></strong></div>
+          <div><span>Email verification</span><strong>{user?.emailVerifiedAt ? <><CheckCircle2 size={15} /> Verified</> : <><MailCheck size={15} /> Pending</>}</strong></div>
+          <div><span>Member since</span><strong><CalendarDays size={15} />{formatProfileDate(user?.createdAt)}</strong></div>
+          <div><span>Last sign-in</span><strong><CalendarDays size={15} />{formatProfileDate(user?.lastLoginAt)}</strong></div>
+        </div>
+        {!user?.emailVerifiedAt && <div className="lrc-profile-action-block"><p>Verify your email to keep account recovery and registry notices available.</p><Button type="button" variant="secondary" disabled={verifyBusy} onClick={resendVerification}><MailCheck size={15} />{verifyBusy ? 'Sending…' : 'Resend verification email'}</Button></div>}
+        {verifyError && <Notice tone="error" style={{ marginTop: '0.8rem' }}>{verifyError}</Notice>}
+        {verifyNotice && <Notice tone="info" style={{ marginTop: '0.8rem' }}>{verifyNotice}</Notice>}
+      </Card>
+
+      <Card id="profile-preferences" title="Workspace preferences" subtitle="Personalize how the signed-in workspace looks on this device.">
+        <div className="lrc-profile-setting-row">
+          <div><strong style={{ color: '#f8fafc' }}>Workspace theme</strong><p style={{ color: '#94a3b8', margin: '4px 0 0', fontSize: '0.82rem' }}>Switch between dark and light mode.</p></div>
+          <div className="lrc-profile-theme-options" role="group" aria-label="Workspace theme">
+            <Button variant={theme === 'dark' ? 'primary' : 'secondary'} aria-pressed={theme === 'dark'} onClick={() => setTheme?.('dark')}><Moon size={15} /> Dark</Button>
+            <Button variant={theme === 'light' ? 'primary' : 'secondary'} aria-pressed={theme === 'light'} onClick={() => setTheme?.('light')}><Sun size={15} /> Light</Button>
+          </div>
+        </div>
+        <div className="lrc-profile-setting-divider" />
+        <div className="lrc-profile-setting-row">
+          <div><strong style={{ color: '#f8fafc' }}>Content spacing</strong><p style={{ color: '#94a3b8', margin: '4px 0 0', fontSize: '0.82rem' }}>Choose a layout that feels right on your screen.</p></div>
+          <div className="lrc-profile-theme-options" role="group" aria-label="Content spacing">
+            <Button variant={density === 'comfortable' ? 'primary' : 'secondary'} aria-pressed={density === 'comfortable'} onClick={() => setDensity?.('comfortable')}><Settings2 size={15} /> Comfortable</Button>
+            <Button variant={density === 'compact' ? 'primary' : 'secondary'} aria-pressed={density === 'compact'} onClick={() => setDensity?.('compact')}>Compact</Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card id="profile-security" title="Sign-in & security" subtitle="Protect your account and manage how you regain access.">
+        <div className="lrc-profile-security-row"><div><strong><Key size={16} /> Password</strong><p>Use a unique password and update it if you think it may have been exposed.</p></div><Button type="button" variant="secondary" disabled={recoveryBusy} onClick={sendPasswordReset}>{recoveryBusy ? 'Sending…' : 'Email password reset link'}</Button></div>
+        {recoveryError && <Notice tone="error" style={{ marginTop: '0.8rem' }}>{recoveryError}</Notice>}
+        {recoveryNotice && <Notice tone="info" style={{ marginTop: '0.8rem' }}>{recoveryNotice}</Notice>}
+        <div className="lrc-profile-setting-divider" />
+        <div className="lrc-profile-security-row"><div><strong><ShieldCheck size={16} /> Authenticator app</strong><p>Use a time-based code from an authenticator app to protect privileged registry accounts.</p></div></div>
+        {canUseMfa ? (user?.mfaEnabled ? (
+          <Notice tone="success"><ShieldCheck size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />Authenticator protection is enabled. You’ll need a current code when you sign in.</Notice>
+        ) : mfaSetup ? (
+          <form onSubmit={confirmMfaSetup} className="lrc-mfa-setup-form">
+            <div className="lrc-mfa-secret"><Smartphone size={18} /><div><strong>Add this account in your authenticator app</strong><p>Open the setup link if your device supports it, or enter this secret manually:</p><code>{mfaSetup.secret}</code><a href={mfaSetup.otpauthUrl} className="lrc-mfa-setup-link">Open authenticator setup link</a></div></div>
+            <Field label="Six-digit authenticator code *" hint="Enter the current code shown in your authenticator app.">
+              <input style={inputStyle} required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value)} />
+            </Field>
+            <Button type="submit" disabled={mfaBusy}>{mfaBusy ? 'Verifying…' : 'Verify and enable 2FA'}</Button>
+          </form>
+        ) : (
+          <form onSubmit={beginMfaSetup} className="lrc-mfa-setup-form">
+            <Field label="Confirm your password *" hint="We ask for your password before creating an authenticator secret.">
+              <PasswordField value={mfaPassword} onChange={(event) => setMfaPassword(event.target.value)} required minLength={1} maxLength={128} autoComplete="current-password" />
+            </Field>
+            <Button type="submit" disabled={mfaBusy}><ShieldCheck size={15} /> {mfaBusy ? 'Preparing…' : 'Set up authenticator app'}</Button>
+          </form>
+        )) : (
+          <p style={{ color: '#94a3b8', fontSize: '0.86rem', margin: 0 }}>Authenticator app enrollment is required for privileged registry roles. Buyer and seller accounts do not currently have this setting.</p>
+        )}
+        {mfaError && <Notice tone="error" style={{ marginTop: '0.8rem' }}>{mfaError}</Notice>}
+        {mfaNotice && <Notice tone="info" style={{ marginTop: '0.8rem' }}>{mfaNotice}</Notice>}
+      </Card>
+
       {!['administrator', 'registrar'].includes(user?.role) && (
-        <Card title="Request county reviewer access" subtitle="This application requests a platform review role. It does not appoint you to a statutory Land Control Board or grant registry permissions.">
+        <Card id="profile-board-access" title="Board & reviewer access" subtitle="Submit appointment details for review. A request does not grant permissions or equal statutory Land Control Board appointment.">
           <form onSubmit={submitReviewerRequest} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.8rem' }}>
             <Field label="Request type *">
               <select style={inputStyle} value={reviewRequest.applicationType} onChange={(event) => setReviewRequest({ ...reviewRequest, applicationType: event.target.value })}>
@@ -273,6 +443,10 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
         <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginTop: '0.8rem' }}>
           <AlertTriangle size={12} style={{ display: 'inline-block', marginRight: '6px' }} /> Changing your password revokes all refresh tokens, so you will need to sign in again on every device.
         </p>
+      </Card>
+
+      <Card title="Sign out" subtitle="End your current session on this device.">
+        <Button variant="danger" onClick={onLogout}><LogOut size={15} /> Log out</Button>
       </Card>
     </div>
   );

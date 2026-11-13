@@ -35,6 +35,10 @@ const publicProfile = (user) => ({
   walletAddress: user.walletAddress ?? null,
   role: user.role,
   status: user.status,
+  mfaEnabled: Boolean(user.mfaEnabledAt),
+  emailVerifiedAt: user.emailVerifiedAt,
+  createdAt: user.createdAt,
+  lastLoginAt: user.lastLoginAt,
 });
 
 router.get('/me', asyncHandler(async (req, res) => sendSuccess(res, { data: publicProfile(req.user), message: 'Profile' })));

@@ -319,11 +319,12 @@ export default function App() {
   };
 
   return (
-    <div className="lrc-app-shell" style={{
+    <div className={`lrc-app-shell${user ? ' is-authenticated' : ''}`} style={{
       minHeight: '100vh', 
       fontFamily: 'system-ui, sans-serif', 
       color: '#f8fafc',
-      backgroundImage: !user && activeTab === 'home'
+      backgroundColor: user ? '#07111f' : '#0f172a',
+      backgroundImage: user ? 'none' : activeTab === 'home'
         ? `linear-gradient(to bottom, rgba(15, 23, 42, 0.34), rgba(2, 6, 23, 0.63)), url('${tabBackgrounds.home}')`
         : `linear-gradient(to bottom, rgba(15, 23, 42, 0.70), rgba(2, 6, 23, 0.85)), url('${tabBackgrounds[activeTab] || tabBackgrounds.home}')`,
       backgroundSize: 'cover',
@@ -332,7 +333,7 @@ export default function App() {
       transition: 'background-image 0.6s ease-in-out'
     }}>
       {/* Top Navbar matching Ardhisasa Structure */}
-      <nav className="lrc-topbar" style={{ background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(16px)', color: '#fff', padding: '0.8rem 2rem', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className={`lrc-topbar${user ? ' lrc-topbar-authenticated' : ''}`} style={{ background: user ? 'rgba(7, 17, 31, 0.96)' : 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(16px)', color: '#fff', padding: user ? '0.62rem 1.5rem' : '0.8rem 2rem', borderBottom: '1px solid rgba(56, 189, 248, 0.2)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div className="lrc-topbar-inner" style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           
           {/* Logo Brand */}
@@ -345,7 +346,7 @@ export default function App() {
           </button>
 
           {/* Role-based navigation links */}
-          <nav className="lrc-primary-nav" aria-label="Primary" style={{ display: 'flex', gap: '6px', background: 'rgba(2, 6, 23, 0.6)', padding: '5px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <nav className={`lrc-primary-nav${user ? ' is-authenticated' : ''}`} aria-label="Primary" style={{ display: 'flex', gap: '6px', background: 'rgba(2, 6, 23, 0.6)', padding: '5px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
             {!user ? (
               <>
                 {[
@@ -369,10 +370,10 @@ export default function App() {
             ) : (
               <>
                 {[
-                  { tab: 'dashboard', label: user.accountType === 'buyer' ? 'Buyer workspace' : user.accountType === 'seller' ? 'Seller workspace' : 'Workspace' },
-                  { tab: 'search', label: user.accountType === 'buyer' ? 'Find land' : 'Registry search' },
+                  { tab: 'dashboard', label: 'Workspace' },
+                  { tab: 'search', label: user.role === 'landowner' && user.accountType === 'buyer' ? 'Land search' : 'Registry search' },
                   { tab: 'gis', label: 'GIS map' },
-                  ...(canViewInvestigations ? [{ tab: 'forensic', label: 'Investigations' }] : []),
+                  ...(canViewInvestigations ? [{ tab: 'forensic', label: 'Forensics' }] : []),
                 ].map(({ tab, label }) => (
                   <button
                     key={tab}
@@ -411,7 +412,7 @@ export default function App() {
               </>
             ) : (
               <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 10px', borderRadius: '8px' }}>
+                <div className="lrc-account-summary" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '6px 10px', borderRadius: '8px' }}>
                   <UserCircle size={18} color="#38bdf8" />
                   <span style={{ fontSize: '0.8rem', color: '#e2e8f0', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.email}>
                     {user.email}
@@ -1053,6 +1054,7 @@ export default function App() {
               onConnectWallet={connectWallet}
               onUnreadChange={setUnreadCount}
               onFindLand={() => setRequestedTab('search')}
+              onLogout={logout}
             />
           ) : (
             <div style={{ maxWidth: '720px', margin: '3rem auto', padding: '0 1rem' }}>

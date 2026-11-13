@@ -26,7 +26,7 @@ function decryptSecret(value) {
   decipher.setAuthTag(Buffer.from(tag, 'hex'));
   return Buffer.concat([decipher.update(Buffer.from(data, 'hex')), decipher.final()]).toString('utf8');
 }
-const publicUser = (user) => ({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, accountType: user.accountType, hasAvatar: Boolean(user.avatarKey), walletAddress: user.walletAddress ?? null, role: user.role, status: user.status, emailVerifiedAt: user.emailVerifiedAt });
+const publicUser = (user) => ({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone, accountType: user.accountType, hasAvatar: Boolean(user.avatarKey), walletAddress: user.walletAddress ?? null, role: user.role, status: user.status, emailVerifiedAt: user.emailVerifiedAt, mfaEnabled: Boolean(user.mfaEnabledAt), createdAt: user.createdAt, lastLoginAt: user.lastLoginAt });
 function accessToken(user) {
   return jwt.sign({ role: user.role }, env.auth.accessSecret, { subject: String(user.id), expiresIn: env.auth.accessTtl, issuer: 'land-registry-api', audience: 'land-registry-client' });
 }

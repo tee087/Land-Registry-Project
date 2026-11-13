@@ -32,9 +32,9 @@ export const labelStyle = {
   marginBottom: '5px',
 };
 
-export function Card({ title, subtitle, actions, children, style }) {
+export function Card({ title, subtitle, actions, children, style, id, className }) {
   return (
-    <section style={{ background: colors.bg, backdropFilter: 'blur(18px)', border: `1px solid ${colors.border}`, borderRadius: '16px', padding: '1.4rem', boxShadow: '0 10px 35px rgba(0,0,0,0.35)', ...style }}>
+    <section id={id} className={className} style={{ background: colors.bg, backdropFilter: 'blur(18px)', border: `1px solid ${colors.border}`, borderRadius: '16px', padding: '1.4rem', boxShadow: '0 10px 35px rgba(0,0,0,0.35)', ...style }}>
       {(title || actions) && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
           <div>

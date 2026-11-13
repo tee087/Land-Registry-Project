@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { ArrowRight, Bell, FileCheck2, LandPlot, RefreshCw, ShieldCheck, Scale } from 'lucide-react';
 import { api } from '../../api/client.js';
-import { Badge, Button, Card, EmptyState, Notice, Spinner, StatusBadge, formatDate } from '../ui.jsx';
+import { Button, Card, EmptyState, Notice, Spinner, StatusBadge, formatDate } from '../ui.jsx';
 import { useResource } from './useResource.js';
 
 const ROLE_COPY = {
@@ -20,11 +20,11 @@ const ACCOUNT_COPY = {
 
 function StatCard({ icon: Icon, label, value, tone = '#38bdf8' }) {
   return (
-    <div style={{ background: 'rgba(2, 6, 23, 0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '1rem 1.1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-        <Icon size={16} color={tone} /> {label}
+    <div className="lrc-dashboard-stat">
+      <div className="lrc-dashboard-stat-label">
+        <span className="lrc-dashboard-stat-icon" style={{ color: tone, background: `${tone}1c` }}><Icon size={17} /></span><span>{label}</span>
       </div>
-      <div style={{ fontSize: '1.9rem', fontWeight: 800, color: '#fff', marginTop: '6px' }}>{value}</div>
+      <div className="lrc-dashboard-stat-value">{value}</div>
     </div>
   );
 }
@@ -61,42 +61,44 @@ export default function OverviewPanel({ user, onNavigate, onFindLand, onUnreadCh
   const owned = parcels.filter((row) => row.status === 'active');
   const isStaff = ['registrar', 'administrator', 'auditor', 'investigator'].includes(user?.role);
   const isBuyer = user?.role === 'landowner' && user?.accountType === 'buyer';
+  const isSeller = user?.role === 'landowner' && user?.accountType === 'seller';
   const relevantPendingTransfers = pendingTransfers.filter((row) => isBuyer ? String(row.toOwnerId) === String(user?.id) : String(row.fromOwnerId) === String(user?.id) || isStaff);
+  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
+  const workspaceLabel = isBuyer ? 'BUYER SERVICES' : isSeller ? 'LANDOWNER SERVICES' : isStaff ? 'REGISTRY OPERATIONS' : 'PROPERTY WORKSPACE';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ margin: 0, color: '#fff', fontSize: '1.5rem' }}>Welcome, {user?.fullName || user?.email}</h2>
-            <p style={{ margin: '6px 0 0 0', color: '#94a3b8', maxWidth: '650px', lineHeight: 1.55 }}>
-              {user?.role === 'landowner' ? (ACCOUNT_COPY[user?.accountType] || ACCOUNT_COPY.buyer_seller) : ROLE_COPY[user?.role] || 'Land registry workspace.'}
-            </p>
+      <section className="lrc-overview-hero">
+        <div className="lrc-overview-hero-copy">
+          <span className="lrc-overview-eyebrow">{workspaceLabel}</span>
+          <h2>{greeting}, {user?.fullName?.split(' ')[0] || 'there'}</h2>
+          <p>{user?.role === 'landowner' ? (ACCOUNT_COPY[user?.accountType] || ACCOUNT_COPY.buyer_seller) : ROLE_COPY[user?.role] || 'Your role-based registry workspace.'}</p>
+          <div className="lrc-overview-hero-actions">
+            {isBuyer ? <>
+              <Button onClick={onFindLand}><LandPlot size={15} /> Search land records</Button>
+              <Button variant="secondary" onClick={() => onNavigate('transfers')}><ArrowRight size={15} /> Purchase requests</Button>
+            </> : isSeller ? <>
+              <Button onClick={() => onNavigate('registrations')}><FileCheck2 size={15} /> Start a registration</Button>
+              <Button variant="secondary" onClick={() => onNavigate('parcels')}><LandPlot size={15} /> My properties</Button>
+              <Button variant="ghost" onClick={() => onNavigate('transfers')}><ArrowRight size={15} /> Sales and transfers</Button>
+            </> : user?.role === 'landowner' ? <>
+              <Button onClick={() => onNavigate('parcels')}><LandPlot size={15} /> My properties</Button>
+              <Button variant="secondary" onClick={() => onNavigate('transfers')}><ArrowRight size={15} /> Transfer activity</Button>
+            </> : <>
+              <Button onClick={() => onNavigate('registrations')}><FileCheck2 size={15} /> Review registrations</Button>
+              <Button variant="secondary" onClick={() => onNavigate('transfers')}><ArrowRight size={15} /> Review transfers</Button>
+            </>}
           </div>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <Badge tone="info">{user?.role}</Badge>
-            <StatusBadge status={user?.status} />
-            {user?.walletAddress ? <Badge tone="success">wallet linked</Badge> : <Badge tone="warning">no wallet</Badge>}
-          </div>
+          {isBuyer && <small>Registry records support due diligence. Confirm ownership and documents through the official process before making payment.</small>}
         </div>
-        {isBuyer ? (
-          <div style={{ marginTop: '1.2rem', display: 'flex', gap: '0.8rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Button onClick={onFindLand}><LandPlot size={14} /> Search registry records</Button>
-            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>This app checks registry records; it does not publish property listings. Confirm a listing and documents independently with a conveyancing advocate.</span>
-          </div>
-        ) : user?.role === 'landowner' && (
-          <div style={{ marginTop: '1.2rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <Button onClick={() => onNavigate('parcels')}><LandPlot size={14} /> Manage my properties</Button>
-            <Button variant="secondary" onClick={() => onNavigate('transfers')}><ArrowRight size={14} /> View sales and transfers</Button>
-          </div>
-        )}
-      </Card>
+        <div className="lrc-overview-hero-visual" aria-hidden="true"><div className="lrc-overview-orbit orbit-one" /><div className="lrc-overview-orbit orbit-two" /><div className="lrc-overview-hero-mark"><LandPlot size={34} /><span>KENYA<br />LAND RECORDS</span></div></div>
+      </section>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.8rem' }}>
         <StatCard icon={LandPlot} label={isStaff ? 'Parcels in scope' : 'Your parcels'} value={parcels.length} />
         <StatCard icon={ShieldCheck} label="Active titles" value={owned.length} tone="#4ade80" />
         <StatCard icon={Scale} label="Frozen / disputed" value={frozen.length} tone="#f87171" />
-        {!isBuyer && <StatCard icon={FileCheck2} label="Pending registrations" value={pendingRegistrations.length} tone="#fbbf24" />}
+        {!isBuyer && <StatCard icon={FileCheck2} label={isStaff ? 'Awaiting review' : 'Pending registrations'} value={pendingRegistrations.length} tone="#fbbf24" />}
         <StatCard icon={ArrowRight} label={isBuyer ? 'Incoming purchase requests' : 'Pending transfers'} value={isBuyer ? relevantPendingTransfers.length : pendingTransfers.length} tone="#a78bfa" />
         <StatCard icon={Bell} label="Unread notifications" value={data?.unread || 0} tone="#38bdf8" />
       </div>
