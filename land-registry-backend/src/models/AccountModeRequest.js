@@ -11,6 +11,6 @@ const AccountModeRequest = sequelize.define('AccountModeRequest', {
   status: { type: DataTypes.ENUM('pending', 'approved', 'cancelled', 'expired'), allowNull: false, defaultValue: 'pending' },
   expiresAt: { type: DataTypes.DATE, allowNull: false, field: 'expires_at' },
   reviewedAt: { type: DataTypes.DATE, allowNull: true, field: 'reviewed_at' },
-}, { tableName: 'account_mode_requests', underscored: true, timestamps: true, updatedAt: false });
+}, { tableName: 'account_mode_requests', underscored: true, timestamps: true });
 
 export default AccountModeRequest;
