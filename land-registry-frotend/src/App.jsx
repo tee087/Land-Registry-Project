@@ -591,21 +591,21 @@ export default function App() {
 
             {/* Info block about LandRegistryChain's unique capabilities */}
             <div className="lrc-about-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-              <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '1.5rem', textAlign: 'left' }}>
+              <div className="lrc-capability-card" style={{ '--lrc-capability-image': 'url("https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=1000&auto=format&fit=crop")' }}>
                 <ShieldCheck size={24} color="#38bdf8" style={{ marginBottom: '10px' }} />
                 <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.1rem', fontWeight: 600 }}>Optional Blockchain Anchoring</h3>
                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem', lineHeight: '1.5' }}>
                   Approved changes can be anchored when a blockchain network and worker are configured. The database remains the registry record.
                 </p>
               </div>
-              <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '1.5rem', textAlign: 'left' }}>
+              <div className="lrc-capability-card" style={{ '--lrc-capability-image': 'url("https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=1000&auto=format&fit=crop")' }}>
                 <FileText size={24} color="#22c55e" style={{ marginBottom: '10px' }} />
                 <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.1rem', fontWeight: 600 }}>Document Integrity</h3>
                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem', lineHeight: '1.5' }}>
                   All documents are verified using SHA-256 cryptographic digests.
                 </p>
               </div>
-              <div style={{ background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '16px', padding: '1.5rem', textAlign: 'left' }}>
+              <div className="lrc-capability-card" style={{ '--lrc-capability-image': 'url("https://images.unsplash.com/photo-1510511459019-5dda7724fd87?q=80&w=1000&auto=format&fit=crop")' }}>
                 <ShieldAlert size={24} color="#ef4444" style={{ marginBottom: '10px' }} />
                 <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.1rem', fontWeight: 600 }}>Digital Forensics</h3>
                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem', lineHeight: '1.5' }}>

@@ -632,3 +632,20 @@ textarea {
     justify-content: center;
   }
 }
+/* Capability cards with photo backgrounds and a contrast overlay. */
+.lrc-capability-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 190px;
+  padding: 1.5rem;
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  border-radius: 16px;
+  background-image: linear-gradient(135deg, rgba(7, 17, 31, 0.72), rgba(7, 17, 31, 0.88)), var(--lrc-capability-image);
+  background-position: center;
+  background-size: cover;
+  text-align: left;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
+}
+.lrc-capability-card h3 { text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); }
+.lrc-capability-card p { color: #e2e8f0 !important; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85); }
