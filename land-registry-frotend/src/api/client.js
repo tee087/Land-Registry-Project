@@ -21,6 +21,9 @@ const VALIDATION_LABELS = {
 };
 
 function getRequestErrorMessage(payload, status) {
+  if (payload?.error?.code === 'APPROVAL_EMAIL_FAILED') {
+    return 'We could not email the site owner for approval. Please try again shortly.';
+  }
   if (status >= 500) return 'Something went wrong on our side. Please try again shortly.';
   const details = payload?.error?.details;
   if (payload?.error?.code === 'VALIDATION_ERROR' && Array.isArray(details) && details.length) {

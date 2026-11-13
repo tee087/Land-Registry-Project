@@ -66,7 +66,8 @@ router.post('/request', authenticate, requestLimiter, validate(modeSchema), asyn
   if (alreadyPending) return sendSuccess(res, { data: safeRequest(request), message: 'Your account mode request is already awaiting review.', statusCode: 202 });
   try {
     await sendAccountModeApprovalRequest({ request, user: req.user, token });
-  } catch {
+  } catch (error) {
+    console.error(`[account-mode] approval email delivery failed for request=${request.reference}: ${error.message}`);
     await request.destroy();
     throw new AppError('We could not send the approval request. Please try again shortly.', 503, 'APPROVAL_EMAIL_FAILED');
   }

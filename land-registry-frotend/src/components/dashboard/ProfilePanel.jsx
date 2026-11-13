@@ -40,7 +40,7 @@ async function normalizeProfileImage(file) {
 
 const KENYA_COUNTIES = ['Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 'Embu', 'Garissa', 'Homa Bay', 'Isiolo', 'Kajiado', 'Kakamega', 'Kericho', 'Kiambu', 'Kilifi', 'Kirinyaga', 'Kisii', 'Kisumu', 'Kitui', 'Kwale', 'Laikipia', 'Lamu', 'Machakos', 'Makueni', 'Mandera', 'Marsabit', 'Meru', 'Migori', 'Mombasa', 'Murang’a', 'Nairobi', 'Nakuru', 'Nandi', 'Narok', 'Nyamira', 'Nyandarua', 'Nyeri', 'Samburu', 'Siaya', 'Taita-Taveta', 'Tana River', 'Tharaka-Nithi', 'Trans Nzoia', 'Turkana', 'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot'];
 
-export default function ProfilePanel({ user, refreshUser, walletAccount, onConnectWallet, theme = 'dark', setTheme, density = 'comfortable', setDensity, onLogout }) {
+export default function ProfilePanel({ user, refreshUser, walletAccount, onConnectWallet, theme = 'dark', setTheme, density = 'comfortable', setDensity, onLogout, onRequestModeChange, modeBusy = false, modeError = '', modeNotice = '', modeRequest = null }) {
   const [form, setForm] = useState({ fullName: '', phone: '', accountType: 'buyer', walletAddress: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -373,7 +373,20 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
           <div><span>Member since</span><strong><CalendarDays size={15} />{formatProfileDate(user?.createdAt)}</strong></div>
           <div><span>Last sign-in</span><strong><CalendarDays size={15} />{formatProfileDate(user?.lastLoginAt)}</strong></div>
         </div>
-        {user?.role === 'landowner' && <p style={{ color: '#94a3b8', fontSize: '.82rem', margin: '12px 0 0' }}>Changing between buyer and seller modes requires review. Submit a request from the workspace mode switch; your current mode stays active until approved.</p>}
+        {user?.role === 'landowner' && <div className="lrc-profile-mode-settings">
+          <div><strong>Workspace mode</strong><p>Request a change between Buyer, Seller, or Both. Your current mode stays active until the site owner approves the request.</p></div>
+          <div className="lrc-profile-theme-options" role="group" aria-label="Request workspace mode change">
+            {[
+              ['buyer', 'Buyer'],
+              ['seller', 'Seller'],
+              ['buyer_seller', 'Both'],
+            ].map(([mode, label]) => <Button key={mode} type="button" variant={user?.accountType === mode ? 'primary' : 'secondary'} aria-pressed={user?.accountType === mode} disabled={modeBusy} onClick={() => onRequestModeChange?.(mode)}>{label}{user?.accountType === mode ? ' · Current' : ''}</Button>)}
+          </div>
+          {modeBusy && <small role="status">Sending your approval request…</small>}
+          {modeError && <Notice tone="error">{modeError}</Notice>}
+          {modeNotice && <Notice tone="success">{modeNotice}</Notice>}
+          {modeRequest && <div className="lrc-account-mode-request" role="status"><strong>Mode change awaiting review</strong><span>{modeRequest.currentAccountType?.replace('_', ' + ')} → {modeRequest.requestedAccountType?.replace('_', ' + ')} · Request {modeRequest.reference}</span><small>Approval link sent to the site owner. Reviews usually take a few hours. Your current mode remains active until approval.</small></div>}
+        </div>}
         {!user?.emailVerifiedAt && <div className="lrc-profile-action-block"><p>Verify your email to keep account recovery and registry notices available.</p><Button type="button" variant="secondary" disabled={verifyBusy} onClick={resendVerification}><MailCheck size={15} />{verifyBusy ? 'Sending…' : 'Resend verification email'}</Button></div>}
         {verifyError && <Notice tone="error" style={{ marginTop: '0.8rem' }}>{verifyError}</Notice>}
         {verifyNotice && <Notice tone="info" style={{ marginTop: '0.8rem' }}>{verifyNotice}</Notice>}

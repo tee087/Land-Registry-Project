@@ -153,7 +153,7 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
       case 'users': return <UsersPanel user={user} />;
       case 'blockchain': return <BlockchainPanel user={user} />;
       case 'notifications': return <NotificationsPanel onUnreadChange={onUnreadChange} />;
-      case 'profile': return <ProfilePanel user={user} refreshUser={refreshUser} walletAccount={walletAccount} onConnectWallet={onConnectWallet} theme={theme} setTheme={setTheme} density={density} setDensity={setDensity} onLogout={onLogout} />;
+      case 'profile': return <ProfilePanel user={user} refreshUser={refreshUser} walletAccount={walletAccount} onConnectWallet={onConnectWallet} theme={theme} setTheme={setTheme} density={density} setDensity={setDensity} onLogout={onLogout} onRequestModeChange={changeMode} modeBusy={modeBusy} modeError={modeError} modeNotice={modeNotice} modeRequest={modeRequest} />;
       default: return <OverviewPanel user={user} onNavigate={setActive} onFindLand={onFindLand} onUnreadChange={onUnreadChange} />;
     }
   };
@@ -169,21 +169,11 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
           </div>
           <div className="lrc-workspace-actions">
             <div className="lrc-workspace-user-badges"><Badge tone="info">{accountLabel}</Badge></div>
-            {user?.role === 'landowner' && <div className="lrc-workspace-mode-switch" role="group" aria-label="Switch workspace mode">
-              <span>MODE</span>
-              <button type="button" aria-pressed={user?.accountType === 'buyer'} disabled={modeBusy} onClick={() => changeMode('buyer')}>Buyer</button>
-              <button type="button" aria-pressed={user?.accountType === 'seller'} disabled={modeBusy} onClick={() => changeMode('seller')}>Seller</button>
-              <button type="button" aria-pressed={user?.accountType === 'buyer_seller'} disabled={modeBusy} onClick={() => changeMode('buyer_seller')}>Both</button>
-              {modeBusy && <small>Sending request…</small>}
-            </div>}
             <button ref={menuButtonRef} type="button" className="lrc-workspace-menu-button" onClick={() => setMenuOpen(true)} aria-haspopup="dialog" aria-expanded={menuOpen} aria-label="Open workspace menu">
               <Menu size={18} /> Menu
             </button>
           </div>
         </div>
-        {modeError && <p role="alert" className="lrc-mode-switch-error">{modeError}</p>}
-        {modeNotice && <p role="status" className="lrc-mode-switch-notice">{modeNotice}</p>}
-        {modeRequest && <div className="lrc-account-mode-request" role="status"><strong>Mode change awaiting review</strong><span>{modeRequest.currentAccountType?.replace('_', ' + ')} → {modeRequest.requestedAccountType?.replace('_', ' + ')} · Request {modeRequest.reference}</span><small>We emailed the approval link to the site owner. Reviews usually take a few hours. Your current mode remains active until approval.</small></div>}
       </Card>
 
       {menuOpen && <button type="button" className="lrc-dashboard-backdrop" aria-label="Close workspace menu" onClick={() => setMenuOpen(false)} />}

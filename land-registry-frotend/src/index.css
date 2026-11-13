@@ -316,6 +316,10 @@ textarea {
 .lrc-account-mode-request { display: grid; gap: 5px; margin-top: 10px; padding: 12px 14px; border: 1px solid rgba(251,191,36,.28); border-radius: 12px; background: rgba(120,53,15,.13); color: #fef3c7; }
 .lrc-account-mode-request span { color: #fde68a; font-size: .82rem; }
 .lrc-account-mode-request small { color: #cbd5e1; font-size: .76rem; line-height: 1.45; }
+.lrc-profile-mode-settings { display: grid; gap: 12px; margin-top: 16px; padding: 15px; border: 1px solid rgba(56,189,248,.2); border-radius: 14px; background: rgba(2,6,23,.28); }
+.lrc-profile-mode-settings > div:first-child strong { color: #f8fafc; }
+.lrc-profile-mode-settings p { margin: 4px 0 0; color: #94a3b8; font-size: .82rem; line-height: 1.5; }
+.lrc-profile-mode-settings small { color: #94a3b8; }
 .lrc-mfa-enrollment-card { display: grid; grid-template-columns: 220px minmax(0,1fr); gap: 14px; align-items: center; }
 .lrc-mfa-qr-wrap { display: grid; justify-items: center; gap: 8px; padding: 14px; border-radius: 14px; background: #fff; color: #334155; }
 .lrc-mfa-qr-wrap img { display: block; width: 190px; height: 190px; }
@@ -340,6 +344,7 @@ textarea {
 .lrc-dashboard-shell[data-theme="light"] .lrc-mfa-secret { background: #f8fafc; }
 .lrc-dashboard-shell[data-theme="light"] .lrc-mfa-secret code { background: #e2e8f0; color: #0f172a; }
 .lrc-dashboard-shell[data-theme="light"] .lrc-workspace-mode-switch { background: #f1f5f9; }
+.lrc-dashboard-shell[data-theme="light"] .lrc-profile-mode-settings { background: #f8fafc; }
 
 @media (max-width: 540px) {
   .lrc-workspace-heading { align-items: flex-start !important; }
