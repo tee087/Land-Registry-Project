@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ShieldCheck, Search, CheckCircle, AlertOctagon, FileText, ShieldAlert, MapPin, Layers, Compass, Lock, Unlock, KeyRound, FileCheck, ArrowRight, Shield, LogOut, UserCircle, Bell, Link2 } from 'lucide-react';
+import { ShieldCheck, Search, CheckCircle, AlertOctagon, FileText, ShieldAlert, MapPin, Layers, Compass, Lock, Unlock, KeyRound, FileCheck, ArrowRight, Shield, LogOut, UserCircle, Bell, Link2, Home, Landmark, MapPinned, Info, WalletCards, LayoutDashboard, FileSearch } from 'lucide-react';
 import { useAuth } from './context/useAuth.js';
 import { api } from './api/client.js';
 import AuthModal from './components/AuthModal.jsx';
@@ -174,8 +174,10 @@ export default function App() {
       try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         setAccount(accounts[0]);
-        await api.updateProfile({ walletAddress: accounts[0] });
-        await refreshUser();
+        if (user) {
+          await api.updateProfile({ walletAddress: accounts[0] });
+          await refreshUser();
+        }
       } catch (err) {
         console.error("Wallet connection rejected", err);
       }
@@ -197,11 +199,17 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
-        setAccount(accounts[0] || null);
-      });
-    }
+    if (!window.ethereum) return undefined;
+    let active = true;
+    const handleAccountsChanged = (accounts) => setAccount(accounts[0] || null);
+    window.ethereum.request({ method: 'eth_accounts' })
+      .then((accounts) => { if (active) handleAccountsChanged(accounts); })
+      .catch(() => {});
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    return () => {
+      active = false;
+      window.ethereum.removeListener?.('accountsChanged', handleAccountsChanged);
+    };
   }, []);
 
   useEffect(() => {
@@ -356,43 +364,45 @@ export default function App() {
           </button>
 
           {/* Role-based navigation links */}
-          <nav className={`lrc-primary-nav${user ? ' is-authenticated' : ''}`} aria-label="Primary" style={{ display: 'flex', gap: '6px', background: 'rgba(2, 6, 23, 0.6)', padding: '5px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+          <nav className={`lrc-primary-nav${user ? ' is-authenticated' : ''}`} aria-label="Primary">
             {!user ? (
               <>
                 {[
-                  { tab: 'home', label: 'Home' },
-                  { tab: 'services', label: 'Services' },
-                  { tab: 'search', label: 'Search Land' },
-                  { tab: 'gis', label: 'GIS Map' },
-                  { tab: 'about', label: 'About Us' },
-                ].map(({ tab, label }) => (
+                  { tab: 'home', label: 'Home', icon: Home },
+                  { tab: 'services', label: 'Services', icon: Landmark },
+                  { tab: 'search', label: 'Search Land', icon: Search },
+                  { tab: 'gis', label: 'GIS Map', icon: MapPinned },
+                  { tab: 'about', label: 'About Us', icon: Info },
+                ].map(({ tab, label, icon: Icon }) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setRequestedTab(tab)}
                     aria-current={activeTab === tab ? 'page' : undefined}
-                    style={{ background: activeTab === tab ? '#38bdf8' : 'transparent', color: activeTab === tab ? '#0f172a' : '#cbd5e1', border: 'none', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+                    className="lrc-nav-link"
                   >
-                    {label}
+                    <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
+                    <span>{label}</span>
                   </button>
                 ))}
               </>
             ) : (
               <>
                 {[
-                  { tab: 'dashboard', label: 'Workspace' },
-                  { tab: 'search', label: user.role === 'landowner' && user.accountType === 'buyer' ? 'Land search' : 'Registry search' },
-                  { tab: 'gis', label: 'GIS map' },
-                  ...(canViewInvestigations ? [{ tab: 'forensic', label: 'Forensics' }] : []),
-                ].map(({ tab, label }) => (
+                  { tab: 'dashboard', label: 'Workspace', icon: LayoutDashboard },
+                  { tab: 'search', label: user.role === 'landowner' && user.accountType === 'buyer' ? 'Land search' : 'Registry search', icon: Search },
+                  { tab: 'gis', label: 'GIS map', icon: MapPinned },
+                  ...(canViewInvestigations ? [{ tab: 'forensic', label: 'Forensics', icon: FileSearch }] : []),
+                ].map(({ tab, label, icon: Icon }) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => handleNavClick(tab)}
                     aria-current={activeTab === tab ? 'page' : undefined}
-                    style={{ background: activeTab === tab ? '#38bdf8' : 'transparent', color: activeTab === tab ? '#0f172a' : '#cbd5e1', border: 'none', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}
+                    className="lrc-nav-link"
                   >
-                    {label}
+                    <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
+                    <span>{label}</span>
                   </button>
                 ))}
               </>
@@ -401,6 +411,18 @@ export default function App() {
 
           {/* Account actions */}
           <div className="lrc-account-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="lrc-wallet-wrap">
+              <button
+                type="button"
+                className={`lrc-wallet-action${account ? ' is-connected' : ''}`}
+                onClick={connectWallet}
+                aria-label={account ? `Connected wallet ${account}` : 'Connect an active wallet'}
+                title={account ? `Connected: ${account}` : 'Click to open active wallet'}
+              >
+                <WalletCards size={20} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+              <small className="lrc-wallet-hint">{account ? `${account.slice(0, 6)}…${account.slice(-4)}` : 'Click to open active wallet'}</small>
+            </div>
             {!user ? (
               <>
                 <button
