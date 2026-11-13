@@ -5,12 +5,13 @@ const REFRESH_KEY = 'lrc.refreshToken';
 const SESSION_EXPIRED_EVENT = 'lrc:session-expired';
 
 export class ApiError extends Error {
-  constructor(message, { status = 0, code = 'UNKNOWN', details = null } = {}) {
+  constructor(message, { status = 0, code = 'UNKNOWN', details = null, requestId = null } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.details = details;
+    this.requestId = requestId;
   }
 }
 
@@ -23,6 +24,9 @@ const VALIDATION_LABELS = {
 function getRequestErrorMessage(payload, status) {
   if (payload?.error?.code === 'APPROVAL_EMAIL_FAILED') {
     return 'We could not email the site owner for approval. Please try again shortly.';
+  }
+  if (status >= 500 && payload?.error?.code === 'INTERNAL_ERROR') {
+    return 'We could not submit this mode request. Please retry; if it keeps failing, share the reference shown below.';
   }
   if (status >= 500) return 'Something went wrong on our side. Please try again shortly.';
   const details = payload?.error?.details;
@@ -118,6 +122,7 @@ async function rawRequest(path, { method = 'GET', body, token, responseType = 'j
       status: res.status,
       code: payload?.error?.code || 'REQUEST_FAILED',
       details: payload?.error?.details || null,
+      requestId: payload?.requestId || null,
     });
   }
 

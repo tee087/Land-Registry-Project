@@ -49,6 +49,7 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
   const [density, setDensity] = useState(() => localStorage.getItem('lrc.dashboardDensity') || 'comfortable');
   const [modeBusy, setModeBusy] = useState(false);
   const [modeError, setModeError] = useState('');
+  const [modeErrorReference, setModeErrorReference] = useState('');
   const [modeNotice, setModeNotice] = useState('');
   const [modeRequest, setModeRequest] = useState(null);
   const modeRequestRef = useRef(null);
@@ -125,6 +126,7 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
     if (nextMode === user?.accountType || modeBusy) return;
     setModeBusy(true);
     setModeError('');
+    setModeErrorReference('');
     setModeNotice('');
     try {
       const { data } = await api.requestAccountModeChange(nextMode);
@@ -133,6 +135,7 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
       setModeNotice('Request submitted. Reviews usually take a few hours. Your current workspace stays active until the site owner approves it.');
     } catch (error) {
       setModeError(error.message || 'Could not change your workspace mode.');
+      setModeErrorReference(error.requestId || '');
     } finally {
       setModeBusy(false);
     }
@@ -153,7 +156,7 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
       case 'users': return <UsersPanel user={user} />;
       case 'blockchain': return <BlockchainPanel user={user} />;
       case 'notifications': return <NotificationsPanel onUnreadChange={onUnreadChange} />;
-      case 'profile': return <ProfilePanel user={user} refreshUser={refreshUser} walletAccount={walletAccount} onConnectWallet={onConnectWallet} theme={theme} setTheme={setTheme} density={density} setDensity={setDensity} onLogout={onLogout} onRequestModeChange={changeMode} modeBusy={modeBusy} modeError={modeError} modeNotice={modeNotice} modeRequest={modeRequest} />;
+      case 'profile': return <ProfilePanel user={user} refreshUser={refreshUser} walletAccount={walletAccount} onConnectWallet={onConnectWallet} theme={theme} setTheme={setTheme} density={density} setDensity={setDensity} onLogout={onLogout} onRequestModeChange={changeMode} modeBusy={modeBusy} modeError={modeError} modeErrorReference={modeErrorReference} modeNotice={modeNotice} modeRequest={modeRequest} />;
       default: return <OverviewPanel user={user} onNavigate={setActive} onFindLand={onFindLand} onUnreadChange={onUnreadChange} />;
     }
   };

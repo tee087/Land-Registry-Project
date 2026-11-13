@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Camera, Save, Wallet, Key, AlertTriangle, Trash2, ShieldCheck, Sun, Moon, LogOut, Smartphone, MailCheck, CalendarDays, UserRound, Settings2, CheckCircle2 } from 'lucide-react';
+import { Camera, Save, Wallet, Key, AlertTriangle, Trash2, ShieldCheck, Sun, Moon, LogOut, Smartphone, MailCheck, CalendarDays, UserRound, Settings2, CheckCircle2, Copy, Check } from 'lucide-react';
 import QRCode from 'qrcode';
 import { api, tokenStore } from '../../api/client.js';
 import { Badge, Button, Card, Field, Notice, PasswordField, StatusBadge, inputStyle } from '../ui.jsx';
@@ -40,7 +40,7 @@ async function normalizeProfileImage(file) {
 
 const KENYA_COUNTIES = ['Baringo', 'Bomet', 'Bungoma', 'Busia', 'Elgeyo-Marakwet', 'Embu', 'Garissa', 'Homa Bay', 'Isiolo', 'Kajiado', 'Kakamega', 'Kericho', 'Kiambu', 'Kilifi', 'Kirinyaga', 'Kisii', 'Kisumu', 'Kitui', 'Kwale', 'Laikipia', 'Lamu', 'Machakos', 'Makueni', 'Mandera', 'Marsabit', 'Meru', 'Migori', 'Mombasa', 'Murang’a', 'Nairobi', 'Nakuru', 'Nandi', 'Narok', 'Nyamira', 'Nyandarua', 'Nyeri', 'Samburu', 'Siaya', 'Taita-Taveta', 'Tana River', 'Tharaka-Nithi', 'Trans Nzoia', 'Turkana', 'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot'];
 
-export default function ProfilePanel({ user, refreshUser, walletAccount, onConnectWallet, theme = 'dark', setTheme, density = 'comfortable', setDensity, onLogout, onRequestModeChange, modeBusy = false, modeError = '', modeNotice = '', modeRequest = null }) {
+export default function ProfilePanel({ user, refreshUser, walletAccount, onConnectWallet, theme = 'dark', setTheme, density = 'comfortable', setDensity, onLogout, onRequestModeChange, modeBusy = false, modeError = '', modeErrorReference = '', modeNotice = '', modeRequest = null }) {
   const [form, setForm] = useState({ fullName: '', phone: '', accountType: 'buyer', walletAddress: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -65,6 +65,7 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
   const [mfaBusy, setMfaBusy] = useState(false);
   const [mfaError, setMfaError] = useState(null);
   const [mfaNotice, setMfaNotice] = useState(null);
+  const [mfaSecretCopied, setMfaSecretCopied] = useState(false);
   const [reviewRequest, setReviewRequest] = useState({ county: '', applicationType: 'platform_committee', boardName: '', appointingAuthority: '', appointmentReference: '', term: '', experience: '', documentsReady: false });
   const [reviewBusy, setReviewBusy] = useState(false);
   const [reviewError, setReviewError] = useState(null);
@@ -209,6 +210,17 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
       setMfaError(err.message || 'Unable to start authenticator setup.');
     } finally {
       setMfaBusy(false);
+    }
+  };
+
+  const copyAuthenticatorKey = async () => {
+    if (!mfaSetup?.secret) return;
+    try {
+      await navigator.clipboard.writeText(mfaSetup.secret);
+      setMfaSecretCopied(true);
+      window.setTimeout(() => setMfaSecretCopied(false), 2500);
+    } catch {
+      setMfaError('Clipboard access is unavailable. Select and copy the setup key manually.');
     }
   };
 
@@ -383,7 +395,7 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
             ].map(([mode, label]) => <Button key={mode} type="button" variant={user?.accountType === mode ? 'primary' : 'secondary'} aria-pressed={user?.accountType === mode} disabled={modeBusy} onClick={() => onRequestModeChange?.(mode)}>{label}{user?.accountType === mode ? ' · Current' : ''}</Button>)}
           </div>
           {modeBusy && <small role="status">Sending your approval request…</small>}
-          {modeError && <Notice tone="error">{modeError}</Notice>}
+          {modeError && <Notice tone="error">{modeError}{modeErrorReference && <span className="lrc-error-reference">Reference: {modeErrorReference}</span>}</Notice>}
           {modeNotice && <Notice tone="success">{modeNotice}</Notice>}
           {modeRequest && <div className="lrc-account-mode-request" role="status"><strong>Mode change awaiting review</strong><span>{modeRequest.currentAccountType?.replace('_', ' + ')} → {modeRequest.requestedAccountType?.replace('_', ' + ')} · Request {modeRequest.reference}</span><small>Approval link sent to the site owner. Reviews usually take a few hours. Your current mode remains active until approval.</small></div>}
         </div>}
@@ -422,7 +434,7 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
           <form onSubmit={confirmMfaSetup} className="lrc-mfa-setup-form">
             <div className="lrc-mfa-enrollment-card">
               <div className="lrc-mfa-qr-wrap"><img src={mfaSetup.qrCodeDataUrl} alt="Scan this QR code with an authenticator app to add LandRegistryChain" /><span>SCAN TO ADD ACCOUNT</span></div>
-              <div className="lrc-mfa-secret"><Smartphone size={18} /><div><strong>Connect your authenticator app</strong><p>Scan this QR code in Google Authenticator, Microsoft Authenticator, Authy, or another TOTP app. If you cannot scan it, enter this setup key manually:</p><code>{mfaSetup.secret}</code><a href={mfaSetup.otpauthUrl} className="lrc-mfa-setup-link">Open authenticator setup link</a></div></div>
+              <div className="lrc-mfa-secret"><Smartphone size={18} /><div><strong>Enter the setup key in your authenticator</strong><p>In Google Authenticator or a similar app, tap <b>+</b>, choose <b>Enter a setup key</b>, name the account <b>LandRegistryChain</b>, paste this key, and choose <b>Time based</b>. Scanning the QR code is also supported.</p><div className="lrc-mfa-manual-key"><code>{mfaSetup.secret}</code><Button type="button" variant="secondary" onClick={copyAuthenticatorKey} aria-label="Copy authenticator setup key">{mfaSecretCopied ? <Check size={15} /> : <Copy size={15} />}{mfaSecretCopied ? 'Copied' : 'Copy key'}</Button></div><p className="lrc-mfa-key-warning">Keep this setup key private. Enter the current six-digit code below to finish enabling MFA.</p><a href={mfaSetup.otpauthUrl} className="lrc-mfa-setup-link">Open authenticator setup link</a></div></div>
             </div>
             <Field label="Six-digit authenticator code *" hint="Enter the current code shown in your authenticator app.">
               <input style={inputStyle} required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event) => setMfaCode(event.target.value)} />
@@ -436,9 +448,7 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
             </Field>
             <Button type="submit" disabled={mfaBusy}><ShieldCheck size={15} /> {mfaBusy ? 'Preparing…' : 'Set up authenticator app'}</Button>
           </form>
-        )) : (
-          <p style={{ color: '#94a3b8', fontSize: '0.86rem', margin: 0 }}>Authenticator app enrollment is required for privileged registry roles. Buyer and seller accounts do not currently have this setting.</p>
-        )}
+        )) : null}
         {mfaError && <Notice tone="error" style={{ marginTop: '0.8rem' }}>{mfaError}</Notice>}
         {mfaNotice && <Notice tone="info" style={{ marginTop: '0.8rem' }}>{mfaNotice}</Notice>}
       </Card>

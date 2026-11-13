@@ -304,6 +304,8 @@ textarea {
 .lrc-mfa-secret { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid rgba(56,189,248,.25); border-radius: 12px; background: rgba(2,6,23,.38); color: #bae6fd; }
 .lrc-mfa-secret p { margin: 5px 0 9px; color: #94a3b8; font-size: .82rem; }
 .lrc-mfa-secret code { display: inline-block; padding: 7px 9px; border-radius: 7px; background: rgba(2,6,23,.7); color: #f8fafc; font-size: .9rem; letter-spacing: .08em; overflow-wrap: anywhere; }
+.lrc-mfa-manual-key { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lrc-mfa-key-warning { color: #fcd34d !important; font-size: .75rem !important; }
 .lrc-mfa-setup-link { display: block; margin-top: 9px; color: #7dd3fc; font-size: .8rem; }
 .lrc-workspace-mode-switch { display: flex; align-items: center; gap: 5px; padding: 4px; border: 1px solid rgba(56,189,248,.2); border-radius: 12px; background: rgba(2,6,23,.45); }
 .lrc-workspace-mode-switch > span { padding: 0 5px; color: #94a3b8; font-size: .63rem; font-weight: 800; letter-spacing: .08em; }
@@ -313,6 +315,7 @@ textarea {
 .lrc-workspace-mode-switch small { padding: 0 5px; color: #94a3b8; }
 .lrc-mode-switch-error { color: #fca5a5; font-size: .82rem; }
 .lrc-mode-switch-notice { color: #86efac; font-size: .82rem; }
+.lrc-error-reference { display: block; margin-top: 5px; font-size: .75rem; opacity: .85; overflow-wrap: anywhere; }
 .lrc-account-mode-request { display: grid; gap: 5px; margin-top: 10px; padding: 12px 14px; border: 1px solid rgba(251,191,36,.28); border-radius: 12px; background: rgba(120,53,15,.13); color: #fef3c7; }
 .lrc-account-mode-request span { color: #fde68a; font-size: .82rem; }
 .lrc-account-mode-request small { color: #cbd5e1; font-size: .76rem; line-height: 1.45; }

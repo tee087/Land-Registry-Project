@@ -118,7 +118,7 @@ export async function setupMfa(userId, password) {
   if (!(await bcrypt.compare(password, user.passwordHash))) throw new AppError('Password is incorrect', 401, 'INVALID_CREDENTIALS');
   const secret = generateSecret();
   user.mfaSecretEncrypted = encryptSecret(secret); await user.save();
-  return { secret, otpauthUrl: generateURI({ issuer: 'Land Registry', label: user.email, secret }) };
+  return { secret, otpauthUrl: generateURI({ issuer: 'LandRegistryChain', label: user.email, secret }) };
 }
 export async function enableMfa(userId, code) {
   const user = await User.unscoped().findByPk(userId, { attributes: ['id','role','mfaSecretEncrypted','mfaEnabledAt'] });
