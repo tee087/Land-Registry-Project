@@ -80,3 +80,46 @@ export async function sendReviewerAccessRequest({ reference, user, application }
     text,
   });
 }
+
+export async function sendAccountModeApprovalRequest({ request, user, token }) {
+  if (!transport) throw new Error('Email delivery is not configured');
+  const approvalUrl = new URL('/approve-account-mode', env.frontendUrl);
+  approvalUrl.hash = new URLSearchParams({ token }).toString();
+  const modeLabel = (value) => ({ buyer: 'Buyer', seller: 'Seller', buyer_seller: 'Buyer and seller' }[value] || value);
+  const text = [
+    'An account mode change is awaiting approval.',
+    '',
+    `Request: ${request.reference}`,
+    `Applicant: ${user.fullName} <${user.email}>`,
+    `Current mode: ${modeLabel(request.currentAccountType)}`,
+    `Requested mode: ${modeLabel(request.requestedAccountType)}`,
+    `Expires: ${request.expiresAt.toISOString()}`,
+    '',
+    'Review this request and approve it using the secure one-time link below:',
+    approvalUrl.toString(),
+    '',
+    'The user account will remain in its current mode until approval is submitted. This link expires after 24 hours and can be used once.',
+    'If you did not expect this request, do not approve it.',
+  ].join('\n');
+  const html = `
+    <div style="margin:0;background:#f1f5f9;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden">
+        <div style="background:#071426;padding:22px;text-align:center;color:#fff;font-size:20px;font-weight:700">LandRegistryChain · Account review</div>
+        <div style="padding:28px">
+          <h1 style="margin:0 0 14px;font-size:22px">Account mode change request</h1>
+          <p style="line-height:1.6">${escapeHtml(user.fullName)} (${escapeHtml(user.email)}) requested to change from <strong>${escapeHtml(modeLabel(request.currentAccountType))}</strong> to <strong>${escapeHtml(modeLabel(request.requestedAccountType))}</strong>.</p>
+          <p style="line-height:1.6">The user remains in the current mode until an authorized mailbox reviewer approves.</p>
+          <p style="margin:24px 0;text-align:center"><a href="${escapeHtml(approvalUrl.toString())}" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#0284c7;color:#fff;text-decoration:none;font-weight:700">Review and approve request</a></p>
+          <p style="color:#64748b;font-size:13px;line-height:1.5">Request ${escapeHtml(request.reference)} · Link expires in 24 hours and works once. Ignore this message if you did not expect it.</p>
+        </div>
+      </div>
+    </div>`;
+  await transport.sendMail({
+    from: env.email.from,
+    to: 'watchoverlandregistry@yahoo.com',
+    replyTo: user.email,
+    subject: `[${request.reference}] Approve ${modeLabel(request.requestedAccountType)} mode request`,
+    text,
+    html,
+  });
+}

@@ -248,6 +248,10 @@ export const api = {
   getProfileAvatar: () => request('/users/me/avatar', { auth: true, responseType: 'blob' }),
   removeProfileAvatar: () => request('/users/me/avatar', { method: 'DELETE', auth: true }),
   requestReviewerAccess: (input) => request('/users/me/reviewer-access-request', { method: 'POST', body: input, auth: true }),
+  requestAccountModeChange: (requestedAccountType) => request('/account-mode/request', { method: 'POST', body: { requestedAccountType }, auth: true }),
+  accountModeRequestStatus: () => request('/account-mode/mine', { auth: true }),
+  getAccountModeApproval: (token) => request('/account-mode/approval/inspect', { method: 'POST', body: { token } }),
+  approveAccountMode: (token) => request('/account-mode/approval', { method: 'POST', body: { token } }),
   changePassword: (input) => request('/users/me/password', { method: 'PATCH', body: input, auth: true }),
   lookupUser: (email) => request('/users/lookup', { query: { email }, auth: true }),
 

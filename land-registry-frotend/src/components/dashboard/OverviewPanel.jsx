@@ -60,11 +60,11 @@ export default function OverviewPanel({ user, onNavigate, onFindLand, onUnreadCh
   const frozen = parcels.filter((row) => ['frozen', 'disputed', 'archived'].includes(row.status));
   const owned = parcels.filter((row) => row.status === 'active');
   const isStaff = ['registrar', 'administrator', 'auditor', 'investigator'].includes(user?.role);
-  const isBuyer = user?.role === 'landowner' && user?.accountType === 'buyer';
-  const isSeller = user?.role === 'landowner' && user?.accountType === 'seller';
-  const relevantPendingTransfers = pendingTransfers.filter((row) => isBuyer ? String(row.toOwnerId) === String(user?.id) : String(row.fromOwnerId) === String(user?.id) || isStaff);
+  const isBuyer = user?.role === 'landowner' && ['buyer', 'buyer_seller'].includes(user?.accountType);
+  const isSeller = user?.role === 'landowner' && ['seller', 'buyer_seller'].includes(user?.accountType);
+  const relevantPendingTransfers = pendingTransfers.filter((row) => (isBuyer && String(row.toOwnerId) === String(user?.id)) || (isSeller && String(row.fromOwnerId) === String(user?.id)) || isStaff);
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
-  const workspaceLabel = isBuyer ? 'BUYER SERVICES' : isSeller ? 'LANDOWNER SERVICES' : isStaff ? 'REGISTRY OPERATIONS' : 'PROPERTY WORKSPACE';
+  const workspaceLabel = isBuyer && isSeller ? 'BUYER + SELLER SERVICES' : isBuyer ? 'BUYER SERVICES' : isSeller ? 'SELLER SERVICES' : isStaff ? 'REGISTRY OPERATIONS' : 'PROPERTY WORKSPACE';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -74,7 +74,11 @@ export default function OverviewPanel({ user, onNavigate, onFindLand, onUnreadCh
           <h2>{greeting}, {user?.fullName?.split(' ')[0] || 'there'}</h2>
           <p>{user?.role === 'landowner' ? (ACCOUNT_COPY[user?.accountType] || ACCOUNT_COPY.buyer_seller) : ROLE_COPY[user?.role] || 'Your role-based registry workspace.'}</p>
           <div className="lrc-overview-hero-actions">
-            {isBuyer ? <>
+            {isBuyer && isSeller ? <>
+              <Button onClick={onFindLand}><LandPlot size={15} /> Search land records</Button>
+              <Button variant="secondary" onClick={() => onNavigate('registrations')}><FileCheck2 size={15} /> Manage properties</Button>
+              <Button variant="ghost" onClick={() => onNavigate('transfers')}><ArrowRight size={15} /> Purchase and sale requests</Button>
+            </> : isBuyer ? <>
               <Button onClick={onFindLand}><LandPlot size={15} /> Search land records</Button>
               <Button variant="secondary" onClick={() => onNavigate('transfers')}><ArrowRight size={15} /> Purchase requests</Button>
             </> : isSeller ? <>

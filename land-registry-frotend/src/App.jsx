@@ -9,6 +9,14 @@ import Footer from './components/Footer.jsx';
 import DepartmentServices from './components/DepartmentServices.jsx';
 import ServiceDetail from './components/ServiceDetail.jsx';
 import { Notice } from './components/ui.jsx';
+import AccountModeApprovalPage from './components/AccountModeApprovalPage.jsx';
+
+function accountModeLabel(user) {
+  if (user?.role !== 'landowner') {
+    return ({ registrar: 'Registry reviewer', administrator: 'Administrator', investigator: 'Investigator', auditor: 'Auditor' }[user?.role] || 'Registry staff');
+  }
+  return ({ buyer: 'Buyer', seller: 'Seller', buyer_seller: 'Buyer + seller' }[user?.accountType] || 'Property account');
+}
 
 export default function App() {
   const [requestedTab, setRequestedTab] = useState('home');
@@ -318,6 +326,8 @@ export default function App() {
     }
   };
 
+  if (window.location.pathname === '/approve-account-mode') return <AccountModeApprovalPage />;
+
   return (
     <div className={`lrc-app-shell${user ? ' is-authenticated' : ''}`} style={{
       minHeight: '100vh', 
@@ -417,7 +427,7 @@ export default function App() {
                   <span style={{ fontSize: '0.8rem', color: '#e2e8f0', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={user.email}>
                     {user.email}
                   </span>
-                  <span style={{ fontSize: '0.65rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 'bold' }}>{user.role}</span>
+                  <span style={{ fontSize: '0.65rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 'bold' }}>{accountModeLabel(user)}</span>
                   <button
                     key="nav-logout"
                     onClick={handleLogout}
@@ -929,7 +939,7 @@ export default function App() {
                     <p style={{ color: '#e2e8f0', margin: '4px 0 0 0', textShadow: '0 1px 6px rgba(0,0,0,0.8)' }}>Review registry status indicators and evidence custody. Indicators are informational and are not automated risk scores.</p>
                   </div>
                   <div style={{ background: 'rgba(14, 116, 144, 0.85)', color: '#bae6fd', padding: '10px 18px', borderRadius: '10px', border: '1px solid #38bdf8', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 0 15px rgba(56, 189, 248, 0.35)' }}>
-                    <ShieldAlert size={18} /> Signed in as {user.role}
+                    <ShieldAlert size={18} /> Signed in as {accountModeLabel(user)}
                   </div>
                 </div>
 

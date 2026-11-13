@@ -26,6 +26,7 @@ import BlockchainPanel from './BlockchainPanel.jsx';
 import ProfilePanel from './ProfilePanel.jsx';
 import NotificationsPanel from '../NotificationsPanel.jsx';
 import { Badge, Card } from '../ui.jsx';
+import { api } from '../../api/client.js';
 
 const ICONS = {
   overview: LayoutDashboard,
@@ -46,6 +47,11 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('lrc.dashboardTheme') || 'dark');
   const [density, setDensity] = useState(() => localStorage.getItem('lrc.dashboardDensity') || 'comfortable');
+  const [modeBusy, setModeBusy] = useState(false);
+  const [modeError, setModeError] = useState('');
+  const [modeNotice, setModeNotice] = useState('');
+  const [modeRequest, setModeRequest] = useState(null);
+  const modeRequestRef = useRef(null);
   const menuButtonRef = useRef(null);
   const drawerRef = useRef(null);
   const role = user?.role;
@@ -57,6 +63,31 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
   useEffect(() => {
     localStorage.setItem('lrc.dashboardDensity', density);
   }, [density]);
+
+  useEffect(() => {
+    if (role !== 'landowner') return undefined;
+    let active = true;
+    const syncRequest = async () => {
+      try {
+        const { data } = await api.accountModeRequestStatus();
+        if (!active) return;
+        if (data.request) {
+          modeRequestRef.current = data.request;
+          setModeRequest(data.request);
+        } else if (modeRequestRef.current) {
+          modeRequestRef.current = null;
+          setModeRequest(null);
+          await refreshUser();
+          if (active) setModeNotice('The review request is no longer pending. Your workspace has been refreshed.');
+        }
+      } catch {
+        // Leave the current workspace usable if the status check is temporarily unavailable.
+      }
+    };
+    void syncRequest();
+    const timer = window.setInterval(syncRequest, 30000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [role, user?.id, refreshUser]);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -71,13 +102,14 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
   }, [menuOpen]);
 
   const sections = useMemo(() => {
-    const isBuyer = user?.accountType === 'buyer';
+    const isBuyer = ['buyer', 'buyer_seller'].includes(user?.accountType);
+    const isSeller = ['seller', 'buyer_seller'].includes(user?.accountType);
     const base = [
       { id: 'overview', label: 'Overview' },
-      { id: 'parcels', label: isBuyer ? 'Land records' : role === 'landowner' ? 'My properties' : 'Parcels' },
-      { id: 'transfers', label: isBuyer ? 'Purchase requests' : 'Sales & transfers' },
+      { id: 'parcels', label: isBuyer && !isSeller ? 'Land records' : role === 'landowner' ? 'My properties' : 'Parcels' },
+      { id: 'transfers', label: isBuyer && isSeller ? 'Purchases & sales' : isBuyer ? 'Purchase requests' : 'Sales & transfers' },
     ];
-    if (!isBuyer || role !== 'landowner') base.push({ id: 'registrations', label: 'Registrations' }, { id: 'documents', label: 'Documents' });
+    if (!isBuyer || isSeller || role !== 'landowner') base.push({ id: 'registrations', label: 'Registrations' }, { id: 'documents', label: 'Documents' });
     if (['investigator', 'administrator'].includes(role)) base.push({ id: 'evidence', label: 'Evidence' });
     if (['auditor', 'administrator'].includes(role)) base.push({ id: 'audit', label: 'Audit trail' });
     if (role === 'administrator') base.push({ id: 'users', label: 'Users' });
@@ -88,6 +120,27 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
   }, [role, user?.accountType]);
 
   const current = sections.some((section) => section.id === active) ? active : 'overview';
+
+  const changeMode = async (nextMode) => {
+    if (nextMode === user?.accountType || modeBusy) return;
+    setModeBusy(true);
+    setModeError('');
+    setModeNotice('');
+    try {
+      const { data } = await api.requestAccountModeChange(nextMode);
+      modeRequestRef.current = data;
+      setModeRequest(data);
+      setModeNotice('Request submitted. Reviews usually take a few hours. Your current workspace stays active until the site owner approves it.');
+    } catch (error) {
+      setModeError(error.message || 'Could not change your workspace mode.');
+    } finally {
+      setModeBusy(false);
+    }
+  };
+
+  const accountLabel = user?.role === 'landowner'
+    ? ({ buyer: 'Buyer', seller: 'Seller', buyer_seller: 'Buyer + seller' }[user?.accountType] || 'Property account')
+    : ({ registrar: 'Registry reviewer', administrator: 'Administrator', auditor: 'Auditor', investigator: 'Investigator' }[user?.role] || 'Registry staff');
 
   const renderPanel = () => {
     switch (current) {
@@ -111,16 +164,26 @@ export default function Dashboard({ user, refreshUser, walletAccount, onConnectW
         <div className="lrc-workspace-heading">
           <div>
             <span className="lrc-workspace-eyebrow">LANDREGISTRYCHAIN · SECURE WORKSPACE</span>
-            <h1 className="lrc-workspace-title">{user?.role === 'landowner' ? (user?.accountType === 'buyer' ? 'Buyer workspace' : user?.accountType === 'seller' ? 'Seller workspace' : 'Property workspace') : user?.role === 'registrar' ? 'Registry review workspace' : user?.role === 'administrator' ? 'Administration workspace' : user?.role === 'auditor' ? 'Audit and assurance workspace' : user?.role === 'investigator' ? 'Forensic workspace' : 'Registry workspace'}</h1>
+            <h1 className="lrc-workspace-title">{user?.role === 'landowner' ? (user?.accountType === 'buyer' ? 'Buyer workspace' : user?.accountType === 'seller' ? 'Seller workspace' : user?.accountType === 'buyer_seller' ? 'Buyer + seller workspace' : 'Property workspace') : user?.role === 'registrar' ? 'Registry review workspace' : user?.role === 'administrator' ? 'Administration workspace' : user?.role === 'auditor' ? 'Audit and assurance workspace' : user?.role === 'investigator' ? 'Forensic workspace' : 'Registry workspace'}</h1>
             <p className="lrc-workspace-subtitle">Welcome back, {user?.fullName || user?.email}. Your records and tasks are organized here.</p>
           </div>
           <div className="lrc-workspace-actions">
-            <div className="lrc-workspace-user-badges"><Badge tone="info">{user?.role}</Badge>{user?.accountType && <Badge tone="neutral">{user.accountType.replace('_', ' and ')}</Badge>}</div>
+            <div className="lrc-workspace-user-badges"><Badge tone="info">{accountLabel}</Badge></div>
+            {user?.role === 'landowner' && <div className="lrc-workspace-mode-switch" role="group" aria-label="Switch workspace mode">
+              <span>MODE</span>
+              <button type="button" aria-pressed={user?.accountType === 'buyer'} disabled={modeBusy} onClick={() => changeMode('buyer')}>Buyer</button>
+              <button type="button" aria-pressed={user?.accountType === 'seller'} disabled={modeBusy} onClick={() => changeMode('seller')}>Seller</button>
+              <button type="button" aria-pressed={user?.accountType === 'buyer_seller'} disabled={modeBusy} onClick={() => changeMode('buyer_seller')}>Both</button>
+              {modeBusy && <small>Sending request…</small>}
+            </div>}
             <button ref={menuButtonRef} type="button" className="lrc-workspace-menu-button" onClick={() => setMenuOpen(true)} aria-haspopup="dialog" aria-expanded={menuOpen} aria-label="Open workspace menu">
               <Menu size={18} /> Menu
             </button>
           </div>
         </div>
+        {modeError && <p role="alert" className="lrc-mode-switch-error">{modeError}</p>}
+        {modeNotice && <p role="status" className="lrc-mode-switch-notice">{modeNotice}</p>}
+        {modeRequest && <div className="lrc-account-mode-request" role="status"><strong>Mode change awaiting review</strong><span>{modeRequest.currentAccountType?.replace('_', ' + ')} → {modeRequest.requestedAccountType?.replace('_', ' + ')} · Request {modeRequest.reference}</span><small>We emailed the approval link to the site owner. Reviews usually take a few hours. Your current mode remains active until approval.</small></div>}
       </Card>
 
       {menuOpen && <button type="button" className="lrc-dashboard-backdrop" aria-label="Close workspace menu" onClick={() => setMenuOpen(false)} />}

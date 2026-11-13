@@ -60,7 +60,7 @@ export async function login(input) {
   if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) throw new AppError('Invalid email or password', 401, 'INVALID_CREDENTIALS');
   if (user.status !== 'active') throw new AppError('Your account is not active', 403, 'ACCOUNT_NOT_ACTIVE');
   if (env.email.required && !user.emailVerifiedAt) throw new AppError('Verify your email before signing in', 403, 'EMAIL_NOT_VERIFIED');
-  if (privilegedRoles.has(user.role) && user.mfaEnabledAt) {
+  if (user.mfaEnabledAt) {
     const valid = input.mfaCode && (await verifyTotp({ secret: decryptSecret(user.mfaSecretEncrypted), token: input.mfaCode })).valid;
     if (!valid) throw new AppError('A valid authenticator code is required', 401, 'MFA_REQUIRED');
   }
@@ -100,8 +100,9 @@ export async function googleAuth(input) {
   } else {
     if (user.status !== 'active') throw new AppError('Your account is not active. Contact support.', 403, 'ACCOUNT_NOT_ACTIVE');
     if (!user.emailVerifiedAt) { user.emailVerifiedAt = new Date(); user.status = 'active'; await user.save(); }
-    if (privilegedRoles.has(user.role) && user.mfaEnabledAt) {
-      throw new AppError('Use your password and authenticator code to sign in to this privileged account.', 403, 'GOOGLE_MFA_REQUIRED');
+    if (user.mfaEnabledAt) {
+      const valid = input.mfaCode && (await verifyTotp({ secret: decryptSecret(user.mfaSecretEncrypted), token: input.mfaCode })).valid;
+      if (!valid) throw new AppError('A valid authenticator app code is required.', 401, 'MFA_REQUIRED');
     }
   }
 
@@ -112,7 +113,7 @@ export async function googleAuth(input) {
 }
 export async function setupMfa(userId, password) {
   const user = await User.unscoped().findByPk(userId, { attributes: ['id','email','passwordHash','role','mfaSecretEncrypted','mfaEnabledAt'] });
-  if (!user || !privilegedRoles.has(user.role)) throw new AppError('MFA enrollment is limited to privileged accounts', 403, 'MFA_NOT_APPLICABLE');
+  if (!user) throw new AppError('Account not found', 404, 'USER_NOT_FOUND');
   if (user.mfaEnabledAt) throw new AppError('MFA is already enabled. Contact a security administrator to reset it.', 409, 'MFA_ALREADY_ENABLED');
   if (!(await bcrypt.compare(password, user.passwordHash))) throw new AppError('Password is incorrect', 401, 'INVALID_CREDENTIALS');
   const secret = generateSecret();
@@ -121,7 +122,7 @@ export async function setupMfa(userId, password) {
 }
 export async function enableMfa(userId, code) {
   const user = await User.unscoped().findByPk(userId, { attributes: ['id','role','mfaSecretEncrypted','mfaEnabledAt'] });
-  if (!user || !privilegedRoles.has(user.role) || !user.mfaSecretEncrypted || user.mfaEnabledAt) throw new AppError('Start MFA enrollment first', 400, 'MFA_SETUP_REQUIRED');
+  if (!user || !user.mfaSecretEncrypted || user.mfaEnabledAt) throw new AppError('Start MFA enrollment first', 400, 'MFA_SETUP_REQUIRED');
   if (!(await verifyTotp({ secret: decryptSecret(user.mfaSecretEncrypted), token: code })).valid) throw new AppError('Authenticator code is invalid', 400, 'INVALID_MFA_CODE');
   user.mfaEnabledAt = new Date(); await user.save();
   return { enabled: true };

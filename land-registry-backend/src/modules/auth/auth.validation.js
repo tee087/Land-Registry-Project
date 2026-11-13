@@ -13,7 +13,7 @@ export const registerSchema = z.object({
   password,
 }).strict();
 export const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(1).max(128), mfaCode: z.string().regex(/^\d{6}$/).optional(), captchaToken: z.string().min(1).max(2048).optional(), rememberMe: z.boolean().optional() }).strict();
-export const googleAuthSchema = z.object({ credential: z.string().min(20).max(8192), accountType: z.enum(['buyer', 'seller', 'buyer_seller']).optional(), phone: z.string().trim().regex(/^\+?[0-9]{9,15}$/).optional(), captchaToken: z.string().min(1).max(2048).optional(), rememberMe: z.boolean().optional() }).strict();
+export const googleAuthSchema = z.object({ credential: z.string().min(20).max(8192), accountType: z.enum(['buyer', 'seller', 'buyer_seller']).optional(), phone: z.string().trim().regex(/^\+?[0-9]{9,15}$/).optional(), mfaCode: z.string().regex(/^\d{6}$/).optional(), captchaToken: z.string().min(1).max(2048).optional(), rememberMe: z.boolean().optional() }).strict();
 export const mfaSetupSchema = z.object({ password: z.string().min(1).max(128) }).strict();
 export const mfaCodeSchema = z.object({ code: z.string().regex(/^\d{6}$/) }).strict();
 export const refreshSchema = z.object({ refreshToken: z.string().min(40).max(200) }).strict();

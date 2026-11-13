@@ -35,6 +35,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
   const [captchaReset, setCaptchaReset] = useState(0);
   const [rememberMe, setRememberMe] = useState(false);
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState('');
   const googleButtonRef = useRef(null);
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
@@ -83,7 +84,15 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             else if (mode === 'register' && !session.user.phone) setMode('googlePhone');
             else onClose();
           } catch (googleError) {
-            setError(googleError.message || 'Google sign-in failed. Please try again.');
+            if (googleError.code === 'MFA_REQUIRED') {
+              setPendingGoogleCredential(credential);
+              setForm((current) => ({ ...current, mfaCode: '' }));
+              setCaptchaToken('');
+              setCaptchaReset((value) => value + 1);
+              setMode('googleMfa');
+            } else {
+              setError(googleError.message || 'Google sign-in failed. Please try again.');
+            }
           } finally {
             setBusy(false);
           }
@@ -121,7 +130,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
 
   const submit = async (event) => {
     event.preventDefault();
-    const isAuthSubmit = mode === 'login' || mode === 'register';
+    const isAuthSubmit = mode === 'login' || mode === 'register' || mode === 'googleMfa';
     const captchaConfigured = Boolean(import.meta.env.VITE_TURNSTILE_SITE_KEY);
     if (isAuthSubmit && import.meta.env.PROD && !captchaConfigured) {
       setError('Human verification is not configured yet. Please try again later.');
@@ -133,7 +142,10 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
     }
     setBusy(true);
     try {
-      if (mode === 'login') {
+      if (mode === 'googleMfa') {
+        await googleAuth({ credential: pendingGoogleCredential, mfaCode: form.mfaCode, ...(captchaToken ? { captchaToken } : {}), rememberMe });
+        onClose();
+      } else if (mode === 'login') {
         const result = await login(form.email, form.password, form.mfaCode, captchaToken, rememberMe);
         if (result.mfaEnrollmentRequired) setMode('mfaSetup');
         else onClose();
@@ -225,7 +237,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : mode === 'googlePhone' ? 'Complete your profile' : 'Authenticator setup'}
+        aria-label={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create account' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : mode === 'googlePhone' ? 'Complete your profile' : mode === 'googleMfa' ? 'Authenticator verification' : 'Authenticator setup'}
         onClick={(event) => event.stopPropagation()}
         style={{
           width: '100%',
@@ -239,7 +251,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#fff' }}>
-            {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify your email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : mode === 'googlePhone' ? 'Complete your profile' : 'Authenticator setup'}
+            {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create account' : mode === 'verify' ? 'Verify your email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : mode === 'googlePhone' ? 'Complete your profile' : mode === 'googleMfa' ? 'Authenticator verification' : 'Authenticator setup'}
           </h2>
           <button
             onClick={onClose}
@@ -311,7 +323,9 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             </div>
           )}
 
-          {mode !== 'reset' && mode !== 'mfaSetup' && mode !== 'googlePhone' && <div>
+          {mode === 'googleMfa' && <div><p style={{ color: '#cbd5e1', lineHeight: 1.6, margin: 0 }}>Enter the current six-digit code from your authenticator app to continue with Google.</p><label style={labelStyle}>Authenticator app code</label><input style={{ ...inputStyle, textAlign: 'center', letterSpacing: '0.45rem', fontSize: '1.2rem' }} inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} required /></div>}
+
+          {mode !== 'reset' && mode !== 'mfaSetup' && mode !== 'googlePhone' && mode !== 'googleMfa' && <div>
             <label style={labelStyle}>Email</label>
             <input
               style={inputStyle}
@@ -416,8 +430,8 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             </div>
           )}
 
-          {(mode === 'login' || mode === 'register') && import.meta.env.VITE_TURNSTILE_SITE_KEY && (
-            <TurnstileWidget action={mode} onToken={setCaptchaToken} resetSignal={captchaReset} />
+          {(mode === 'login' || mode === 'register' || mode === 'googleMfa') && import.meta.env.VITE_TURNSTILE_SITE_KEY && (
+            <TurnstileWidget action={mode === 'register' ? 'register' : 'login'} onToken={setCaptchaToken} resetSignal={captchaReset} />
           )}
           {(mode === 'login' || mode === 'register') && import.meta.env.PROD && !import.meta.env.VITE_TURNSTILE_SITE_KEY && (
             <p role="status" style={{ color: '#fbbf24', fontSize: '0.8rem', margin: 0 }}>Human verification is not configured. Sign in and registration will be unavailable until the site key is added.</p>
@@ -452,7 +466,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
               cursor: busy ? 'not-allowed' : 'pointer',
             }}
           >
-            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Send recovery link' : mode === 'reset' ? 'Reset password' : mode === 'mfaSetup' ? (mfaSetup ? 'Enable MFA' : 'Begin MFA setup') : mode === 'googlePhone' ? 'Save phone number and continue' : 'Create account'}
+            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : mode === 'googleMfa' ? 'Verify code and continue' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Send recovery link' : mode === 'reset' ? 'Reset password' : mode === 'mfaSetup' ? (mfaSetup ? 'Enable MFA' : 'Begin MFA setup') : mode === 'googlePhone' ? 'Save phone number and continue' : 'Create account'}
           </button>
         </form>
 
