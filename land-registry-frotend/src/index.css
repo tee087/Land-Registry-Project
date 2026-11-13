@@ -75,6 +75,7 @@ textarea {
   .lrc-brand span { display: block; font-size: 0.62rem !important; line-height: 1.2; }
 
   .lrc-primary-nav {
+  display: flex !important;
     grid-row: 2;
     grid-column: 1 / -1;
     width: 100%;
@@ -391,6 +392,7 @@ textarea {
 }
 .lrc-topbar-inner { position: relative; z-index: 1; gap: 12px; }
 .lrc-primary-nav {
+  display: flex !important;
   align-items: stretch !important;
   gap: 3px !important;
   padding: 5px !important;
@@ -453,6 +455,7 @@ textarea {
 @keyframes lrc-wallet-glow { 0%, 100% { box-shadow: 0 0 8px rgba(45,240,193,.34), 0 0 18px rgba(24,204,190,.18), inset 0 1px 4px rgba(255,255,255,.24); } 50% { box-shadow: 0 0 12px rgba(45,240,193,.56), 0 0 28px rgba(24,204,190,.34), inset 0 1px 5px rgba(255,255,255,.34); } }
 @media (max-width: 760px) {
   .lrc-topbar-inner { column-gap: 6px !important; }
+  .lrc-primary-nav { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); width: 100%; }
   .lrc-primary-nav .lrc-nav-link { min-width: 0; padding: 6px 3px; gap: 3px; font-size: clamp(.56rem, 2.5vw, .68rem) !important; }
   .lrc-primary-nav .lrc-nav-link svg { width: 13px; height: 13px; }
   .lrc-wallet-wrap { padding: 0 !important; gap: 0; background: transparent !important; border: 0 !important; }
