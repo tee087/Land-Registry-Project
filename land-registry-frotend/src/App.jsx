@@ -319,7 +319,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ 
+    <div className="lrc-app-shell" style={{
       minHeight: '100vh', 
       fontFamily: 'system-ui, sans-serif', 
       color: '#f8fafc',
