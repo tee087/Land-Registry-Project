@@ -506,11 +506,6 @@ export default function App() {
               Choose a service to get started.
             </p>
 
-            <section style={{ maxWidth: 850, margin: '0 auto 2.5rem', padding: '1.25rem 1.5rem', textAlign: 'left', background: 'rgba(15,23,42,.88)', border: '1px solid rgba(56,189,248,.35)', borderRadius: 14 }}>
-              <h2 style={{ margin: '0 0 .5rem', color: '#7dd3fc', fontSize: '1.2rem' }}>Where blockchain fits</h2>
-              <p style={{ margin: 0, color: '#cbd5e1', lineHeight: 1.65 }}>Registrar-approved registration and transfer events are queued in the backend. They are written to the configured EVM contract only when the blockchain worker and contract are configured and running. The registry database records the legal workflow; an on-chain hash is an audit reference, not a title deed. MetaMask can link a wallet address to your profile, but currently does not sign or approve land transfers.</p>
-            </section>
-
             {/* Service cards grid */}
             <div className="lrc-service-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '3rem' }}>
               {[
