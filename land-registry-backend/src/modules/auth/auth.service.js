@@ -86,13 +86,13 @@ export async function googleAuth(input) {
 
   let user = await User.unscoped().findOne({ where: { email: identity.email.toLowerCase() } });
   if (!user) {
-    if (!input.accountType || !input.phone) {
-      throw new AppError('Choose an account type and enter your phone number to finish Google registration.', 422, 'GOOGLE_REGISTRATION_DETAILS_REQUIRED');
+    if (!input.accountType) {
+      throw new AppError('Choose an account type to finish Google registration.', 422, 'GOOGLE_REGISTRATION_DETAILS_REQUIRED');
     }
     user = await User.create({
       fullName: String(identity.name || identity.email).slice(0, 120),
       email: identity.email.toLowerCase(),
-      phone: input.phone,
+      phone: input.phone || null,
       accountType: input.accountType,
       passwordHash: await bcrypt.hash(crypto.randomBytes(48).toString('base64url'), env.auth.bcryptRounds),
       role: 'landowner', status: 'active', emailVerifiedAt: new Date(),

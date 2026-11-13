@@ -25,7 +25,7 @@ const labelStyle = {
 };
 
 export default function AuthModal({ open, onClose, initialMode = 'login' }) {
-  const { login, register, error, setError, googleAuth, acceptSession } = useAuth();
+  const { login, register, error, setError, googleAuth, acceptSession, refreshUser } = useAuth();
   const dialogRef = useRef(null);
   const [resetToken, setResetToken] = useState(new URLSearchParams(window.location.hash.slice(1)).get('token') || '');
   const [mode, setMode] = useState(window.location.pathname === '/reset-password' ? 'reset' : initialMode);
@@ -34,6 +34,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaReset, setCaptchaReset] = useState(0);
   const [rememberMe, setRememberMe] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
   const googleButtonRef = useRef(null);
   const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
@@ -74,11 +75,12 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
           try {
             const session = await googleAuth({
               credential,
-              ...(mode === 'register' ? { accountType: form.accountType, phone: form.phone.trim() } : {}),
+              ...(mode === 'register' ? { accountType: form.accountType } : {}),
               ...(captchaToken ? { captchaToken } : {}),
               rememberMe,
             });
             if (session.mfaEnrollmentRequired) setNotice('Google sign-in is unavailable for privileged accounts. Sign in with your password and authenticator code.');
+            else if (mode === 'register' && !session.user.phone) setMode('googlePhone');
             else onClose();
           } catch (googleError) {
             setError(googleError.message || 'Google sign-in failed. Please try again.');
@@ -114,6 +116,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
     setNotice('');
     setCaptchaToken('');
     setCaptchaReset((value) => value + 1);
+    setMfaRequired(false);
   };
 
   const submit = async (event) => {
@@ -143,6 +146,10 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
         }
         await api.enableMfa(form.mfaCode);
         setNotice('Multi-factor authentication enabled.');
+        onClose();
+      } else if (mode === 'googlePhone') {
+        await api.updateProfile({ phone: form.phone.trim() });
+        await refreshUser();
         onClose();
       } else if (mode === 'forgot') {
         await api.requestPasswordReset(form.email);
@@ -185,6 +192,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
         onClose();
       }
     } catch (submitError) {
+      if (mode === 'login') setMfaRequired(submitError.code === 'MFA_REQUIRED');
       setError(submitError.message);
       // Error is surfaced by the auth context / thrown validation message below.
     } finally {
@@ -217,7 +225,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
+        aria-label={mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : mode === 'googlePhone' ? 'Complete your profile' : 'Authenticator setup'}
         onClick={(event) => event.stopPropagation()}
         style={{
           width: '100%',
@@ -231,7 +239,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#fff' }}>
-            {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify your email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : 'Authenticator setup'}
+            {mode === 'login' ? 'Sign in' : mode === 'register' ? 'Create landowner account' : mode === 'verify' ? 'Verify your email' : mode === 'forgot' ? 'Recover account' : mode === 'reset' ? 'Reset password' : mode === 'googlePhone' ? 'Complete your profile' : 'Authenticator setup'}
           </h2>
           <button
             onClick={onClose}
@@ -303,7 +311,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             </div>
           )}
 
-          {mode !== 'reset' && mode !== 'mfaSetup' && <div>
+          {mode !== 'reset' && mode !== 'mfaSetup' && mode !== 'googlePhone' && <div>
             <label style={labelStyle}>Email</label>
             <input
               style={inputStyle}
@@ -328,6 +336,23 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
               </select>
             </div>
           )}
+
+          {mode === 'googlePhone' && <div>
+            <p style={{ color: '#cbd5e1', lineHeight: 1.6, margin: '0 0 0.75rem' }}>Your Google account is connected. Add a phone number to complete your profile.</p>
+            <label style={labelStyle}>Phone number</label>
+            <input
+              style={inputStyle}
+              type="tel"
+              value={form.phone}
+              onChange={update('phone')}
+              required
+              pattern="\+?[0-9]{9,15}"
+              title="Enter 9–15 digits, optionally starting with +. For Kenya, use 0712345678 or +254712345678."
+              placeholder="+254712345678"
+              autoComplete="tel"
+            />
+            <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '5px 0 0', textAlign: 'left' }}>For Kenya, enter 0712345678 or +254712345678. Don’t include spaces or hyphens.</p>
+          </div>}
 
           {mode === 'register' && (
             <div>
@@ -368,7 +393,11 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             </label>
           )}
 
-          {mode === 'login' && <div><label style={labelStyle}>Authenticator code (privileged accounts)</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} /></div>}
+          {mode === 'login' && mfaRequired && <div>
+            <label style={labelStyle}>Authenticator app code</label>
+            <input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" autoComplete="one-time-code" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} required aria-describedby="mfa-code-help" />
+            <p id="mfa-code-help" style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '5px 0 0' }}>Enter the current six-digit code from your authenticator app.</p>
+          </div>}
           {mode === 'mfaSetup' && <div style={{ color: '#cbd5e1', fontSize: '0.9rem', overflowWrap: 'anywhere' }}>
             <p>Privileged accounts must enroll an authenticator before using registry functions.</p>
             {mfaSetup && <><p><strong>Secret:</strong> {mfaSetup.secret}</p><p>Authenticator URI: {mfaSetup.otpauthUrl}</p><label style={labelStyle}>Six-digit code</label><input style={inputStyle} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.mfaCode} onChange={update('mfaCode')} required /></>}
@@ -398,7 +427,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
             <>
               <div aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: '0.75rem' }}><span style={{ height: 1, flex: 1, background: 'rgba(148,163,184,.35)' }} />OR CONTINUE WITH<span style={{ height: 1, flex: 1, background: 'rgba(148,163,184,.35)' }} /></div>
               <div ref={googleButtonRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 42 }} />
-              {mode === 'register' && <p style={{ color: '#94a3b8', fontSize: '0.72rem', margin: 0, textAlign: 'center' }}>Choose your account type and enter your required phone number above to register with Google.</p>}
+              {mode === 'register' && <p style={{ color: '#94a3b8', fontSize: '0.72rem', margin: 0, textAlign: 'center' }}>Choose your account type to register. You’ll add your phone number after Google sign-in.</p>}
             </>
           )}
 
@@ -423,7 +452,7 @@ export default function AuthModal({ open, onClose, initialMode = 'login' }) {
               cursor: busy ? 'not-allowed' : 'pointer',
             }}
           >
-            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Send recovery link' : mode === 'reset' ? 'Reset password' : mode === 'mfaSetup' ? (mfaSetup ? 'Enable MFA' : 'Begin MFA setup') : 'Create account'}
+            {busy ? 'Please wait...' : mode === 'login' ? 'Sign in' : mode === 'verify' ? 'Verify email' : mode === 'forgot' ? 'Send recovery link' : mode === 'reset' ? 'Reset password' : mode === 'mfaSetup' ? (mfaSetup ? 'Enable MFA' : 'Begin MFA setup') : mode === 'googlePhone' ? 'Save phone number and continue' : 'Create account'}
           </button>
         </form>
 
