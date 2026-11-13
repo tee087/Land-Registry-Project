@@ -605,3 +605,30 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .lrc-service-card, .lrc-search-form > button, .lrc-service-card-arrow { transition: none; }
 }
+/* Keep the full role-aware navigation visible on desktop widths. */
+@media (min-width: 761px) {
+  .lrc-topbar-inner {
+    max-width: 1440px !important;
+    width: 100%;
+  }
+  .lrc-brand,
+  .lrc-primary-nav,
+  .lrc-account-actions {
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1120px) {
+  .lrc-topbar-inner {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+  }
+  .lrc-brand { grid-row: 1; grid-column: 1; }
+  .lrc-account-actions { grid-row: 1; grid-column: 2; }
+  .lrc-primary-nav {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}

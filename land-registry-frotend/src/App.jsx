@@ -392,6 +392,8 @@ export default function App() {
                   { tab: 'dashboard', label: 'Workspace', icon: LayoutDashboard },
                   { tab: 'search', label: user.role === 'landowner' && user.accountType === 'buyer' ? 'Land search' : 'Registry search', icon: Search },
                   { tab: 'gis', label: 'GIS map', icon: MapPinned },
+                  { tab: 'services', label: 'Services', icon: Landmark },
+                  { tab: 'about', label: 'About Us', icon: Info },
                   ...(canViewInvestigations ? [{ tab: 'forensic', label: 'Forensics', icon: FileSearch }] : []),
                 ].map(({ tab, label, icon: Icon }) => (
                   <button
