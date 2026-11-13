@@ -221,10 +221,11 @@ export async function requestEmailVerification(email) {
     : false;
   return { accepted: true, emailSent };
 }
-export async function requestPasswordReset(email) {
+export async function requestPasswordReset(email, { awaitDelivery = false } = {}) {
   const user = await User.findOne({ where: { email: email.toLowerCase() } });
-  if (user && user.status === 'active') await issueAuthLink(user, 'password_reset');
-  return { accepted: true };
+  if (!user || user.status !== 'active') return { accepted: true, emailSent: false };
+  const emailSent = await issueAuthLink(user, 'password_reset', { awaitDelivery });
+  return { accepted: true, emailSent };
 }
 export async function resetPassword(rawToken, newPassword) {
   const passwordHash = await bcrypt.hash(newPassword, env.auth.bcryptRounds);

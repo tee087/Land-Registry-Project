@@ -25,6 +25,9 @@ function getRequestErrorMessage(payload, status) {
   if (payload?.error?.code === 'APPROVAL_EMAIL_FAILED') {
     return 'We could not email the site owner for approval. Please try again shortly.';
   }
+  if (payload?.error?.code === 'EMAIL_DELIVERY_FAILED') {
+    return 'Email not sent. Please try again shortly.';
+  }
   if (status >= 500 && payload?.error?.code === 'INTERNAL_ERROR') {
     return 'We could not submit this mode request. Please retry; if it keeps failing, share the reference shown below.';
   }
@@ -237,6 +240,7 @@ export const api = {
   verifyEmailCode: (email, code) => request('/auth/verify-email', { method: 'POST', body: { email, code } }),
   requestEmailVerification: (email) => request('/auth/email-verification/request', { method: 'POST', body: { email } }),
   requestPasswordReset: (email) => request('/auth/password-reset/request', { method: 'POST', body: { email } }),
+  requestOwnPasswordReset: () => request('/auth/password-reset/request-me', { method: 'POST', auth: true }),
   resetPassword: (token, password) => request('/auth/password-reset/confirm', { method: 'POST', body: { token, password } }),
   setupMfa: (password) => request('/auth/mfa/setup', { method: 'POST', body: { password }, auth: true }),
   enableMfa: (code) => request('/auth/mfa/enable', { method: 'POST', body: { code }, auth: true }),

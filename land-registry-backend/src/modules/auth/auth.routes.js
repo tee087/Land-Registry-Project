@@ -15,6 +15,7 @@ router.post('/google', authLimiter, validate(googleAuthSchema), asyncHandler(con
 router.post('/verify-email', authLimiter, validate(emailVerificationSchema), asyncHandler(controller.verifyEmail));
 router.post('/email-verification/request', authLimiter, validate(passwordResetRequestSchema), asyncHandler(controller.requestEmailVerification));
 router.post('/password-reset/request', authLimiter, validate(passwordResetRequestSchema), asyncHandler(controller.requestPasswordReset));
+router.post('/password-reset/request-me', authLimiter, authenticate, asyncHandler(controller.requestOwnPasswordReset));
 router.post('/password-reset/confirm', authLimiter, validate(resetPasswordSchema), asyncHandler(controller.resetPassword));
 router.post('/mfa/setup', authenticate, validate(mfaSetupSchema), asyncHandler(controller.setupMfa));
 router.post('/mfa/enable', authenticate, validate(mfaCodeSchema), asyncHandler(controller.enableMfa));

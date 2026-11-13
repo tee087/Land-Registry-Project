@@ -14,7 +14,14 @@ export const verifyEmail = async (req, res) => sendSuccess(res, {
   message: 'Email verified. Your account is ready.',
 });
 export const requestEmailVerification = async (req, res) => sendSuccess(res, { data: await service.requestEmailVerification(req.body.email), message: 'If verification is needed for that account, a code will be sent.' });
-export const requestPasswordReset = async (req, res) => sendSuccess(res, { data: await service.requestPasswordReset(req.body.email), message: 'If an active account matches that address, a reset link will be sent.' });
+export const requestPasswordReset = async (req, res) => {
+  await service.requestPasswordReset(req.body.email);
+  return sendSuccess(res, { data: { accepted: true }, message: 'If an active account matches that address, a reset link will be sent.' });
+};
+export const requestOwnPasswordReset = async (req, res) => {
+  const data = await service.requestPasswordReset(req.user.email, { awaitDelivery: true });
+  return sendSuccess(res, { data, message: data.emailSent ? 'Password reset email accepted for delivery.' : 'A reset email was sent recently.' });
+};
 export const resetPassword = async (req, res) => sendSuccess(res, { data: await service.resetPassword(req.body.token, req.body.password), message: 'Password reset. Sign in with your new password.' });
 export const setupMfa = async (req, res) => {
   const data = await service.setupMfa(req.user.id, req.body.password);

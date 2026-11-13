@@ -229,8 +229,10 @@ export default function ProfilePanel({ user, refreshUser, walletAccount, onConne
     setRecoveryError(null);
     setRecoveryNotice(null);
     try {
-      await api.requestPasswordReset(user.email);
-      setRecoveryNotice(`If password recovery is available for ${user.email}, a secure reset link will be sent.`);
+      const { data } = await api.requestOwnPasswordReset();
+      setRecoveryNotice(data.emailSent
+        ? `Password reset email sent to ${user.email}. Check your inbox, spam, and promotions folders. The link expires in 30 minutes.`
+        : 'A reset email was sent recently. Check your inbox, spam, and promotions folders before requesting another.');
     } catch (err) {
       setRecoveryError(err.message || 'Unable to request a password reset right now.');
     } finally {
